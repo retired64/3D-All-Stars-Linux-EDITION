@@ -110,7 +110,7 @@ def create_fallback_vinyl():
 # 🧵 HILO DE CARGA DE RECURSOS (BACKGROUND)
 # ==========================================
 def load_resources_thread(width, height):
-    global GAMES, MUSIC_TRACKS, background_surface, vinyl_original, vinyl_disc
+    global GAMES, MUSIC_TRACKS, vinyl_original, vinyl_disc
     global nav_sound, custom_font, resources_loaded, loading_progress
 
     print("🧵 Iniciando carga optimizada...")
@@ -123,7 +123,7 @@ def load_resources_thread(width, height):
             custom_font = pygame.font.Font(None, 36)
     except:
         custom_font = pygame.font.Font(None, 36)
-    loading_progress = 10
+    loading_progress = 15
 
     # 2. Cargar Audio Navegación
     if NAVIGATION_SOUND_PATH.exists():
@@ -131,21 +131,9 @@ def load_resources_thread(width, height):
             nav_sound = pygame.mixer.Sound(str(NAVIGATION_SOUND_PATH))
             nav_sound.set_volume(0.3)
         except: pass
-    loading_progress = 20
+    loading_progress = 25
 
-    # 3. Cargar Imagen de Fondo (Reemplaza Video)
-    if BACKGROUND_IMAGE.exists():
-        try:
-            bg_img = pygame.image.load(str(BACKGROUND_IMAGE)).convert()
-            background_surface = pygame.transform.smoothscale(bg_img, (width, height))
-            print("✅ Fondo cargado (PNG estático)")
-        except Exception as e:
-            print(f"⚠️ Error cargando fondo: {e}")
-            background_surface = pygame.Surface((width, height))
-            background_surface.fill((20, 20, 30))
-    else:
-        background_surface = pygame.Surface((width, height))
-        background_surface.fill((20, 20, 30))
+    # 3. Fondo ya cargado en main thread
     loading_progress = 35
 
     # 4. Cargar Vinilo
@@ -214,7 +202,7 @@ def load_resources_thread(width, height):
     
     loading_progress = 100
     resources_loaded = True
-    print("✅ Carga optimizada completada (sin OpenCV)")
+    print("✅ Carga optimizada completada")
 
 # ==========================================
 # 🎮 INICIALIZACIÓN PYGAME
@@ -233,6 +221,40 @@ pygame.display.flip()
 pygame.display.set_caption(WINDOW_TITLE)
 clock = pygame.time.Clock()
 
+# ==========================================
+# 🖼️ CARGA PRIORITARIA DEL FONDO
+# ==========================================
+print(f"📂 Ruta base: {BASE_DIR}")
+print(f"🖼️ Buscando fondo en: {BACKGROUND_IMAGE}")
+
+if BACKGROUND_IMAGE.exists():
+    try:
+        print("⏳ Cargando fondo...")
+        bg_img = pygame.image.load(str(BACKGROUND_IMAGE)).convert()
+        background_surface = pygame.transform.smoothscale(bg_img, (WIDTH, HEIGHT))
+        print("✅ Fondo cargado y optimizado")
+    except Exception as e:
+        print(f"⚠️ Error cargando fondo: {e}")
+        background_surface = pygame.Surface((WIDTH, HEIGHT))
+        for y in range(HEIGHT):
+            progress = y / HEIGHT
+            r = int(20 + progress * 20)
+            g = int(20 + progress * 40)
+            b = int(30 + progress * 60)
+            pygame.draw.line(background_surface, (r, g, b), (0, y), (WIDTH, y))
+else:
+    print(f"⚠️ No se encontró fondo.png, usando degradado")
+    background_surface = pygame.Surface((WIDTH, HEIGHT))
+    for y in range(HEIGHT):
+        progress = y / HEIGHT
+        r = int(20 + progress * 20)
+        g = int(20 + progress * 40)
+        b = int(30 + progress * 60)
+        pygame.draw.line(background_surface, (r, g, b), (0, y), (WIDTH, y))
+
+# ==========================================
+# 🕹️ INICIALIZAR JOYSTICKS
+# ==========================================
 pygame.joystick.init()
 joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
 for j in joysticks: j.init()
@@ -271,7 +293,8 @@ while splash_active:
     
     for e in pygame.event.get():
         if e.type == pygame.QUIT:
-            pygame.quit(); sys.exit()
+            pygame.quit()
+            sys.exit()
 
     if resources_loaded and elapsed > MIN_SPLASH_TIME:
         fade_direction = -1
@@ -391,31 +414,39 @@ def draw_game_card(game, position_offset, center_x, center_y):
 def draw_creator_button():
     mouse_pos = pygame.mouse.get_pos()
     full_text = f"By {CREATOR_USERNAME}"
-    total_width = sum([custom_font.render(c, True, (255,255,255)).get_width() for c in full_text])
+    
+    # Calculo seguro del ancho
+    total_width = 0
+    if custom_font:
+        total_width = sum([custom_font.render(c, True, (255,255,255)).get_width() for c in full_text])
+    else:
+        # Fallback si la fuente no cargó
+        total_width = 200 
     
     start_x = WIDTH - total_width - 50
     start_y = HEIGHT - 50
     text_rect = pygame.Rect(start_x, start_y - 35, total_width, 45)
     is_hovered = text_rect.collidepoint(mouse_pos)
     
-    cx = start_x
-    for i, char in enumerate(full_text):
-        col = MARIO64_COLORS[i % len(MARIO64_COLORS)]
-        ls = custom_font.render(char, True, col)
-        ss = custom_font.render(char, True, (0,0,0))
-        screen.blit(ss, (cx + 3, start_y + 3))
-        screen.blit(ls, (cx, start_y + (-5 if is_hovered else 0)))
-        cx += ls.get_width()
-    
-    if is_hovered:
-        pygame.draw.line(screen, (255, 255, 255, 200), (start_x, start_y + 40), (start_x + total_width, start_y + 40), 2)
+    if custom_font:
+        cx = start_x
+        for i, char in enumerate(full_text):
+            col = MARIO64_COLORS[i % len(MARIO64_COLORS)]
+            ls = custom_font.render(char, True, col)
+            ss = custom_font.render(char, True, (0,0,0))
+            screen.blit(ss, (cx + 3, start_y + 3))
+            screen.blit(ls, (cx, start_y + (-5 if is_hovered else 0)))
+            cx += ls.get_width()
+        
+        if is_hovered:
+            pygame.draw.line(screen, (255, 255, 255, 200), (start_x, start_y + 40), (start_x + total_width, start_y + 40), 2)
     return text_rect
 
 vinyl_rotation = 0
 vinyl_pulse_phase = 0
 def draw_music_player():
     global vinyl_rotation, vinyl_pulse_phase
-    if not MUSIC_TRACKS or not vinyl_original: return
+    if not MUSIC_TRACKS or not vinyl_original or not custom_font: return
     
     vinyl_pulse_phase += 0.15
     pulse_scale = 1.0 + (np.sin(vinyl_pulse_phase) * 0.08)
@@ -437,6 +468,7 @@ def draw_music_player():
     track = MUSIC_TRACKS[current_track_index]
     tx, ty = dx + VINYL_SIZE // 2 + 20, dy - 15
     
+    # Efecto de borde en texto
     for ox, oy in [(-2,-2),(-2,0),(-2,2),(0,-2),(0,2),(2,-2),(2,0),(2,2)]:
         screen.blit(custom_font.render(track["name"], True, (0,0,0)), (tx+ox, ty+oy))
         screen.blit(custom_font.render(f"{current_track_index+1}/{len(MUSIC_TRACKS)}", True, (0,0,0)), (tx+ox, ty+50+oy))
@@ -473,6 +505,7 @@ def execute_game(game):
         print(f"🚀 Ejecutando: {ruta}")
         
         env = os.environ.copy()
+        # Restaurar LD_LIBRARY_PATH si es necesario para evitar conflictos con AppImages
         if 'LD_LIBRARY_PATH_ORIG' in env:
             env['LD_LIBRARY_PATH'] = env['LD_LIBRARY_PATH_ORIG']
         elif 'LD_LIBRARY_PATH' in env:
@@ -500,6 +533,7 @@ last_music_change_time = 0
 b_button_held = False
 b_button_start_time = 0
 shutdown_fade = 0
+creator_button_rect = None  # Inicializado para evitar errores en el primer frame
 
 while running:
     dt = clock.tick(FPS)
@@ -523,9 +557,11 @@ while running:
             
             if current_time - last_music_change_time > 1000:
                 if e.key in [pygame.K_DOWN, pygame.K_s]:
-                    next_track(); last_music_change_time = current_time
+                    next_track()
+                    last_music_change_time = current_time
                 elif e.key in [pygame.K_UP, pygame.K_w]:
-                    previous_track(); last_music_change_time = current_time
+                    previous_track()
+                    last_music_change_time = current_time
         
         elif e.type == pygame.MOUSEBUTTONDOWN:
             if e.button == 1 and creator_button_rect and creator_button_rect.collidepoint(e.pos):
@@ -535,109 +571,32 @@ while running:
             if e.button in [0, 7, 9] and not launching and GAMES:
                 start_launch_sequence(GAMES[selected_index])
             elif e.button == 1:
-                b_button_held = True; b_button_start_time = current_time
+                b_button_held = True
+                b_button_start_time = current_time
         
+        # --- AQUÍ ESTABA EL ERROR ---
+        # Corregido: Se usa e.button en lugar de sys.exit()
         elif e.type == pygame.JOYBUTTONUP:
-            if e.button == 1: b_button_held = False; shutdown_fade = 0
+            if e.button == 1:
+                b_button_held = False
+                shutdown_fade = 0
         
         elif e.type == pygame.JOYHATMOTION:
             if not launching and GAMES:
-                if e.value[0] == 1: target_index += 1; nav_sound.play() if nav_sound else None
-                elif e.value[0] == -1: target_index -= 1; nav_sound.play() if nav_sound else None
-            if current_time - last_music_change_time > 1000:
-                if e.value[1] == -1: next_track(); last_music_change_time = current_time
-                elif e.value[1] == 1: previous_track(); last_music_change_time = current_time
-
-    if not launching and GAMES:
-        for j in joysticks:
-            if j.get_numaxes() >= 2:
-                ax = j.get_axis(0)
-                if abs(ax) > JOYSTICK_DEADZONE and current_time - last_axis_time > 180:
-                    target_index += 1 if ax > 0 else -1
+                if e.value[0] == 1: 
+                    target_index += 1
                     if nav_sound: nav_sound.play()
-                    last_axis_time = current_time
-                ay = j.get_axis(1)
-                if abs(ay) > JOYSTICK_DEADZONE and current_time - last_music_change_time > 1000:
-                    if ay > 0: next_track()
-                    else: previous_track()
-                    last_music_change_time = current_time
-
-    if GAMES:
-        diff = target_index - visual_index
-        visual_index = float(target_index) if abs(diff) < 0.005 else visual_index + diff * TRANSITION_SPEED
-        selected_index = int(round(visual_index)) % len(GAMES)
-
-    if b_button_held:
-        elapsed_hold = current_time - b_button_start_time
-        shutdown_fade = min(int((elapsed_hold / 5000) * 255), 255)
-        if elapsed_hold >= 5000: running = False
-    elif shutdown_fade > 0:
-        shutdown_fade = max(0, shutdown_fade - 10)
-
-    # ✅ DIBUJO OPTIMIZADO: Imagen estática pre-cargada
-    if background_surface:
-        screen.blit(background_surface, (0, 0))
-    else:
-        screen.fill((20, 20, 30))
-
-    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-    overlay.fill((0, 0, 0, 140))
-    screen.blit(overlay, (0, 0))
-
-    if GAMES and not launching:
-        cx, cy = WIDTH // 2, HEIGHT // 2 - 60
-        base_idx = int(round(visual_index))
-        frac = visual_index - base_idx
-        for off in sorted([-2, -1, 0, 1, 2], key=lambda x: -abs(x - frac)):
-            draw_game_card(GAMES[(base_idx + off) % len(GAMES)], off - frac, cx, cy)
-    
-    draw_music_player()
-    creator_button_rect = draw_creator_button()
-
-    if music_loaded and not pygame.mixer.music.get_busy() and not launching:
-        next_track()
-
-    if shutdown_fade > 0:
-        s_over = pygame.Surface((WIDTH, HEIGHT))
-        s_over.fill((0,0,0))
-        s_over.set_alpha(shutdown_fade)
-        screen.blit(s_over, (0,0))
-        if shutdown_fade > 127:
-            txt = pygame.font.Font(None, 70).render(f"Cerrando... {int(shutdown_fade/2.55)}%", True, (255,50,50))
-            screen.blit(txt, txt.get_rect(center=(WIDTH//2, HEIGHT//2)))
-
-    if launching:
-        elapsed = current_time - launch_start_time
-        prog = min(elapsed / fade_duration, 1.0)
-        
-        f_surf = pygame.Surface((WIDTH, HEIGHT))
-        f_surf.fill((0,0,0))
-        f_surf.set_alpha(int(prog * 255))
-        screen.blit(f_surf, (0,0))
-        
-        if prog > 0.2:
-            alpha = int(((prog - 0.2) / 0.8) * 255)
-            font_big = pygame.font.Font(None, 90)
-            txt = font_big.render(f"Iniciando {launch_game_data['nombre']}...", True, (255,255,255))
-            txt.set_alpha(alpha)
-            screen.blit(txt, txt.get_rect(center=(WIDTH//2, HEIGHT//2)))
+                elif e.value[0] == -1: 
+                    target_index -= 1
+                    if nav_sound: nav_sound.play()
             
-        if elapsed >= fade_duration:
-            execute_game(launch_game_data)
-            launching = False
-
-    pygame.display.flip()
-
-pygame.quit()
-sys.exit().button == 1: b_button_held = False; shutdown_fade = 0
-        
-        elif e.type == pygame.JOYHATMOTION:
-            if not launching and GAMES:
-                if e.value[0] == 1: target_index += 1; nav_sound.play() if nav_sound else None
-                elif e.value[0] == -1: target_index -= 1; nav_sound.play() if nav_sound else None
             if current_time - last_music_change_time > 1000:
-                if e.value[1] == -1: next_track(); last_music_change_time = current_time
-                elif e.value[1] == 1: previous_track(); last_music_change_time = current_time
+                if e.value[1] == -1: 
+                    next_track()
+                    last_music_change_time = current_time
+                elif e.value[1] == 1: 
+                    previous_track()
+                    last_music_change_time = current_time
 
     if not launching and GAMES:
         for j in joysticks:
@@ -658,6 +617,7 @@ sys.exit().button == 1: b_button_held = False; shutdown_fade = 0
         visual_index = float(target_index) if abs(diff) < 0.005 else visual_index + diff * TRANSITION_SPEED
         selected_index = int(round(visual_index)) % len(GAMES)
 
+    # Lógica del botón B para apagar
     if b_button_held:
         elapsed_hold = current_time - b_button_start_time
         shutdown_fade = min(int((elapsed_hold / 5000) * 255), 255)
@@ -665,7 +625,7 @@ sys.exit().button == 1: b_button_held = False; shutdown_fade = 0
     elif shutdown_fade > 0:
         shutdown_fade = max(0, shutdown_fade - 10)
 
-    # DIBUJO OPTIMIZADO: Imagen estática en lugar de video
+    # Dibujado
     if background_surface:
         screen.blit(background_surface, (0, 0))
     else:
