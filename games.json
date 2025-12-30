@@ -1,0 +1,53 @@
+[
+  {
+    "nombre": "Super Mario 64 Coop",
+    "tipo": "binario",
+    "ruta_ejecutable": "games/mario64/sm64coopdx",
+    "icon": "assets/mario64/icon.png",
+    "logo": "assets/mario64/logo.png",
+    "sound": "assets/mario64/mario64.wav"
+  },
+  {
+    "nombre": "Mario Galaxy",
+    "tipo": "binario",
+    "ruta_ejecutable": "games/marioGalaxy/run",
+    "icon": "assets/marioGalaxy/icon.png",
+    "logo": "assets/marioGalaxy/logo.png",
+    "sound": "assets/marioGalaxy/mariogalaxy1.wav"
+
+  },
+  {
+    "nombre": "Mario Galaxy 2",
+    "tipo": "binario",
+    "ruta_ejecutable": "games/marioGalaxy2/run",
+    "icon": "assets/marioGalaxy2/icon.png",
+    "logo": "assets/marioGalaxy2/logo.png",
+    "sound": "assets/marioGalaxy2/mariogalaxy2.wav"
+
+  },
+  {
+    "nombre": "Mario 3D Land",
+    "tipo": "binario",
+    "ruta_ejecutable": "games/mario3dland/run",
+    "icon": "assets/mario3dland/icon.png",
+    "logo": "assets/mario3dland/logo.png",
+    "sound": "assets/mario3dland/mario3dLand.wav"
+
+  },
+  {
+    "nombre": "Mario Sunshine",
+    "tipo": "binario",
+    "ruta_ejecutable": "games/marioshunshine/run",
+    "icon": "assets/marioshunshine/icon.png",
+    "logo": "assets/marioshunshine/logo.png",
+    "sound": "assets/marioshunshine/mariosunshine.wav"
+  },
+  {
+    "nombre": "Mario 64 DS",
+    "tipo": "binario",
+    "ruta_ejecutable": "games/mario64DS/run",
+    "icon": "assets/mario64DS/icon.png",
+    "logo": "assets/mario64DS/logo.png",
+    "sound": "assets/mario64DS/mario64DS.wav"
+  }
+]

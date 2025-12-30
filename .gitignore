@@ -1,0 +1,14 @@
+dist/*
+games/mario64DS/*.nds
+eden/Eden-Linux-v0.0.4-amd64-clang-pgo.AppImage
+assets/ogg-sounds.zip
+dolphin-emulator.zip
+bkup
+main.zip
+venv
+games/mario3dland/sm3dland.cci
+games/mario64/*
+games/marioGalaxy/SuperMarioGalaxy.wbfs
+games/marioGalaxy2/SuperMarioGalaxy2.wbfs
+games/marioshunshine/SuperMarioSunshine-TropicalFreeze.iso
+
