@@ -1,2 +1,2 @@
 #!/bin/bash
-./azahar.AppImage -f sm3dland.cci
+../../3ds/azahar.AppImage -f sm3dland.cci
