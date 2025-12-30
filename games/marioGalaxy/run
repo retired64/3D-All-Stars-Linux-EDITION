@@ -1,0 +1,7 @@
+#!/bin/sh
+cd "$(dirname "$0")" || exit 1
+
+../../dolphin-emulator/dolphin-emu \
+  -b \
+  -u ../../dolphin-emulator/User \
+  -e SuperMarioGalaxy.wbfs

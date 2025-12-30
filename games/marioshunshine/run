@@ -1,0 +1,6 @@
+#!/bin/sh
+cd "$(dirname "$0")" || exit 1
+
+../../dolphin-emulator/dolphin-emu \
+  -b \
+  -e SuperMarioSunshine-TropicalFreeze.iso
