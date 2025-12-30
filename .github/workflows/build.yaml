@@ -1,0 +1,116 @@
+name: Build 3D All Stars Deluxe Launcher
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04  # Ubuntu 22.04 para mejor compatibilidad
+        python-version: ['3.10']
+    
+    steps:
+      - name: 📦 Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: 📚 Install system dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libsdl2-dev \
+            libsdl2-image-dev \
+            libsdl2-mixer-dev \
+            libsdl2-ttf-dev \
+            libfreetype6-dev \
+            libportmidi-dev \
+            libjpeg-dev \
+            python3-dev \
+            libavcodec-dev \
+            libavformat-dev \
+            libswscale-dev \
+            libv4l-dev \
+            libxvidcore-dev \
+            libx264-dev \
+            libgtk-3-dev \
+            libatlas-base-dev \
+            gfortran
+      
+      - name: 🔧 Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+      
+      - name: 🏗️ Build executable with PyInstaller
+        run: |
+          pyinstaller \
+            --onefile \
+            --name "3D-All-Stars-Launcher" \
+            --hidden-import pygame \
+            --hidden-import cv2 \
+            --hidden-import numpy \
+            --collect-all pygame \
+            --noconsole \
+            main.py
+      
+      - name: 📝 Create release info
+        run: |
+          echo "Build Date: $(date)" > dist/BUILD_INFO.txt
+          echo "Python Version: ${{ matrix.python-version }}" >> dist/BUILD_INFO.txt
+          echo "OS: ${{ matrix.os }}" >> dist/BUILD_INFO.txt
+          echo "Commit: ${{ github.sha }}" >> dist/BUILD_INFO.txt
+      
+      - name: 📤 Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3D-All-Stars-Launcher-${{ matrix.os }}
+          path: |
+            dist/3D-All-Stars-Launcher
+            dist/BUILD_INFO.txt
+          retention-days: 30
+      
+      - name: 🚀 Create Release (on tag push)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/3D-All-Stars-Launcher
+            dist/BUILD_INFO.txt
+          body: |
+            ## 🎮 3D All Stars Deluxe - Linux Edition
+            
+            ### 📦 Installation
+            1. Download `3D-All-Stars-Launcher`
+            2. Make executable: `chmod +x 3D-All-Stars-Launcher`
+            3. Ensure `assets/` folder and `games.json` are in the same directory
+            4. Run: `./3D-All-Stars-Launcher`
+            
+            ### 📋 Requirements
+            - Linux (Ubuntu 20.04+)
+            - SDL2 libraries (auto-installed on most distros)
+            - Asset files (not included in binary)
+            
+            ### 🎯 Features
+            - ✨ Full gamepad support
+            - 🎵 Music player with vinyl animation
+            - 🎨 Smooth 3D carousel
+            - 🚀 Fast game launching
+            
+            Built on: ${{ matrix.os }}
+            Python: ${{ matrix.python-version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
