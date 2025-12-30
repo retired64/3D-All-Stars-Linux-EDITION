@@ -1,5 +1,9 @@
 ![Banner 3D All Stars Linux EDITION](src/img/logo.png)
 
+**Version:** 1.0 (Pre-release)
+**Platform:** Linux
+**Release Page:** [3D All Stars Linux EDITION Pre-release](https://github.com/retired64/3D-All-Stars-Linux-EDITION/releases)
+
 # User Guide: 3D All Stars Deluxe Launcher (Linux)
 
 Welcome to 3D All Stars Linux EDITION! This program is designed to give you a console-like "Plug & Play" experience with gamepad support, ambient music, and a smooth interface.
