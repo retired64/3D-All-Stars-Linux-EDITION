@@ -37,10 +37,10 @@
   {
     "nombre": "Mario Sunshine",
     "tipo": "binario",
-    "ruta_ejecutable": "games/marioshunshine/run",
-    "icon": "assets/marioshunshine/icon.png",
-    "logo": "assets/marioshunshine/logo.png",
-    "sound": "assets/marioshunshine/mariosunshine.wav"
+    "ruta_ejecutable": "games/mariosunshine/run",
+    "icon": "assets/mariosunshine/icon.png",
+    "logo": "assets/mariosunshine/logo.png",
+    "sound": "assets/mariosunshine/mariosunshine.wav"
   },
   {
     "nombre": "Mario 64 DS",
