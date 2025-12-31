@@ -20,7 +20,7 @@
 Welcome to 3D All Stars Linux EDITION! This program is designed to give you a console-like "Plug & Play" experience with gamepad support, ambient music, and a smooth interface.
 
 <div align="center">
-  <img src="src/img/potential.png" alt="Potential" width="200"/>
+  <img src="src/img/potential.png" alt="Potential" width="400"/>
 </div>
 
 This isn't just a game menu; it's a **unified command center**.
@@ -32,7 +32,7 @@ This isn't just a game menu; it's a **unified command center**.
 ---
 
 <div align="center">
-  <img src="src/img/configure.png" alt="Configure" width="200"/>
+  <img src="src/img/configure.png" alt="Configure" width="400"/>
 </div>
 
 For the Launcher to work, you need to place your files following the structure the program expects.
