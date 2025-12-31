@@ -3,7 +3,7 @@
 <div align="center">
   
   <a href="https://github.com/retired64/3D-All-Stars-Linux-EDITION/fork">
-    <img src="src/img/fork.png" alt="Fork this repository" width="400" />
+    <img src="src/img/fork.png" alt="Fork this repository" width="160" />
   </a>
   
   <br>
