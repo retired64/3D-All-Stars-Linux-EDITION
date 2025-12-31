@@ -8,16 +8,18 @@
     
   ![GitHub forks](https://img.shields.io/github/forks/retired64/3D-All-Stars-Linux-EDITION?style=social)
   ![GitHub stars](https://img.shields.io/github/stars/retired64/3D-All-Stars-Linux-EDITION?style=social)
+  ![Version](https://img.shields.io/badge/version-1.0--prerelease-blue)
+  ![Platform](https://img.shields.io/badge/platform-Linux-orange)
+  ![License](https://img.shields.io/badge/license-MIT-green)
   
 </div>
 
-**Version:** 1.0 (Pre-release)
-**Platform:** Linux
-**Release Page:** [3D All Stars Linux EDITION Pre-release](https://github.com/retired64/3D-All-Stars-Linux-EDITION/releases)
-
-# User Guide: 3D All Stars Deluxe Launcher (Linux)
+## About This Project
 
 Welcome to 3D All Stars Linux EDITION! This program is designed to give you a console-like "Plug & Play" experience with gamepad support, ambient music, and a smooth interface.
+**Version:** 1.0 (Pre-release)  
+**Platform:** Linux (Ubuntu/Debian tested)  
+**Release Page:** [Download Latest Release](https://github.com/retired64/3D-All-Stars-Linux-EDITION/releases)
 
 <div align="center">
   <img src="src/img/potential.png" alt="Potential" width="400"/>
@@ -116,6 +118,42 @@ If you want to expand your collection, you need to edit the `games.json` file in
 > Once configured to your liking, close the emulator and open the **3D All Stars Launcher** to enjoy the complete experience!
 
 ---
+
+
+## Installation
+### Clone from Git
+
+```bash
+git clone https://github.com/retired64/3D-All-Stars-Linux-EDITION.git
+cd 3D-All-Stars-Linux-EDITION
+# Activate virtual env 
+python3 -m venv .venv
+
+source .venv/bin/Activate
+
+pip install -r requirements.txt 
+
+python3 main.py 
+```
+
+
+<div align="center">
+
+**Enjoyed this project? Consider giving it a ⭐**
+
+![Made with Love](https://img.shields.io/badge/Made%20with-❤️-red)
+![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)
+![Gaming](https://img.shields.io/badge/Gaming-FF0000?logo=nintendo&logoColor=white)
+
+</div>
+
+---
+
+## 🔗 Useful Links
+
+- [Report a Bug](https://github.com/retired64/3D-All-Stars-Linux-EDITION/issues/new?labels=bug)
+- [Request a Feature](https://github.com/retired64/3D-All-Stars-Linux-EDITION/issues/new?labels=enhancement)
+- [Join Discussions](https://github.com/retired64/3D-All-Stars-Linux-EDITION/discussions)
 
 <div align="center">
   <img src="src/img/retired64.png" alt="Retired64" width="400"/>
