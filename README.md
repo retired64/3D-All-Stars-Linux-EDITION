@@ -22,6 +22,12 @@ Welcome to 3D All Stars Linux EDITION! This program is designed to give you a co
 **Release Page:** [Download Latest Release](https://github.com/retired64/3D-All-Stars-Linux-EDITION/releases)
 
 <div align="center">
+  <a href="https://mega.nz/file/OAMg1byY#O5czNUJV-JWojAn7F77B9C65BwUtx5OHyxRLw9xyKEE" target="_blank">
+    <img src="src/img/ld.png" alt="Descripción" width="400"/>
+  </a>
+</div>
+
+<div align="center">
   <img src="src/img/potential.png" alt="Potential" width="400"/>
 </div>
 
