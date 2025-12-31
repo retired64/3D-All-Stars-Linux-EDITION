@@ -33,6 +33,13 @@ This isn't just a game menu; it's a **unified command center**.
 
 ---
 
+## Who Is This For?
+
+This project is ideal for:
+- Linux users who want a console-like gaming experience
+- Users comfortable with basic file management
+- Players who prefer gamepad-first navigation
+
 <div align="center">
   <img src="src/img/configure.png" alt="Configure" width="400"/>
 </div>
@@ -129,7 +136,7 @@ cd 3D-All-Stars-Linux-EDITION
 # Activate virtual env 
 python3 -m venv .venv
 
-source .venv/bin/Activate
+source .venv/bin/activate
 
 pip install -r requirements.txt 
 
@@ -144,6 +151,16 @@ python3 main.py
 ![Made with Love](https://img.shields.io/badge/Made%20with-❤️-red)
 ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)
 ![Gaming](https://img.shields.io/badge/Gaming-FF0000?logo=nintendo&logoColor=white)
+
+### Project Status
+
+This is a pre-release version.
+Expect:
+- Possible bugs
+- Missing features
+- Limited distro testing
+
+Community feedback is highly appreciated.
 
 </div>
 
