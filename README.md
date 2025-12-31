@@ -19,7 +19,9 @@
 
 Welcome to 3D All Stars Linux EDITION! This program is designed to give you a console-like "Plug & Play" experience with gamepad support, ambient music, and a smooth interface.
 
-## The Launcher's Potential
+<div align="center">
+  <img src="src/img/potential.png" alt="Potential" width="200"/>
+</div>
 
 This isn't just a game menu; it's a **unified command center**.
 
@@ -29,7 +31,9 @@ This isn't just a game menu; it's a **unified command center**.
 
 ---
 
-## How to Configure Your Own Games
+<div align="center">
+  <img src="src/img/configure.png" alt="Configure" width="200"/>
+</div>
 
 For the Launcher to work, you need to place your files following the structure the program expects.
 
@@ -112,6 +116,10 @@ If you want to expand your collection, you need to edit the `games.json` file in
 > Once configured to your liking, close the emulator and open the **3D All Stars Launcher** to enjoy the complete experience!
 
 ---
+
+<div align="center">
+  <img src="src/img/retired64.png" alt="Retired64" width="400"/>
+</div>
 
 _Developed with ❤️ by **Retired64**_
 [https://www.youtube.com/@Retired64](https://www.youtube.com/@Retired64)
