@@ -1,5 +1,18 @@
 ![Banner 3D All Stars Linux EDITION](src/img/logo.png)
 
+<div align="center">
+  
+  <a href="https://github.com/retired64/3D-All-Stars-Linux-EDITION/fork">
+    <img src="src/img/fork.png" alt="Fork this repository" width="400" />
+  </a>
+  
+  <br>
+  
+  ![GitHub forks](https://img.shields.io/github/forks/retired64/3D-All-Stars-Linux-EDITION?style=social)
+  ![GitHub stars](https://img.shields.io/github/stars/retired64/3D-All-Stars-Linux-EDITION?style=social)
+  
+</div>
+
 **Version:** 1.0 (Pre-release)
 **Platform:** Linux
 **Release Page:** [3D All Stars Linux EDITION Pre-release](https://github.com/retired64/3D-All-Stars-Linux-EDITION/releases)
