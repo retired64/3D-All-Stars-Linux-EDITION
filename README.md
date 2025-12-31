@@ -23,7 +23,7 @@ Welcome to 3D All Stars Linux EDITION! This program is designed to give you a co
 
 <div align="center">
   <a href="https://mega.nz/file/OAMg1byY#O5czNUJV-JWojAn7F77B9C65BwUtx5OHyxRLw9xyKEE" target="_blank">
-    <img src="src/img/ld.png" alt="Descripción" width="400"/>
+    <img src="src/img/dl.png" alt="assets folder" width="400"/>
   </a>
 </div>
 
