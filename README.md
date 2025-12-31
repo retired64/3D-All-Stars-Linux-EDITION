@@ -3,11 +3,9 @@
 <div align="center">
   
   <a href="https://github.com/retired64/3D-All-Stars-Linux-EDITION/fork">
-    <img src="src/img/fork.png" alt="Fork this repository" width="160" />
+    <img src="src/img/fork.png" alt="Fork this repository" width="140" />
   </a>
-  
-  <br>
-  
+    
   ![GitHub forks](https://img.shields.io/github/forks/retired64/3D-All-Stars-Linux-EDITION?style=social)
   ![GitHub stars](https://img.shields.io/github/stars/retired64/3D-All-Stars-Linux-EDITION?style=social)
   
