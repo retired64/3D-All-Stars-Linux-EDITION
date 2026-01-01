@@ -1,6 +1,6 @@
-![Banner 3D All Stars Linux EDITION](src/img/logo.png)
-
 <div align="center">
+  <img src="src/img/logo.png" alt="Banner 3D All Stars Linux EDITION" width="100%">
+  <br><br>
   
   <a href="https://github.com/retired64/3D-All-Stars-Linux-EDITION/fork">
     <img src="src/img/fork.png" alt="Fork this repository" width="140" />
@@ -64,6 +64,7 @@ Each game inside the `games/game_name/` folder has a file called `run`.
 cd "$(dirname "$0")" || exit 1
 # Calls the emulator and loads the ISO you place in that folder
 ../../dolphin-emulator/dolphin-emu -b -e MyGame.iso
+
 ```
 
 ### 2. Where to Put Your Games (ROMs)
@@ -72,7 +73,7 @@ For the default configured games, make sure to rename your legally obtained file
 
 * **Super Mario Galaxy 1:** `games/marioGalaxy/SuperMarioGalaxy.wbfs`
 * **Super Mario Galaxy 2:** `games/marioGalaxy2/SuperMarioGalaxy2.wbfs`
-* **Super Mario Sunshine:** `games/marioshunshine/SuperMarioSunshine.iso`
+* **Super Mario Sunshine:** `games/mariosunshine/SuperMarioSunshine.iso`
 * **Mario 3D Land (3DS):** `games/mario3dland/sm3dland.cci` (decrypted version) - rename from .3ds to .cci, it's that simple.
 * **Mario 64 DS:** `games/mario64DS/Mario64DS.nds`
 
@@ -99,6 +100,7 @@ If you want to expand your collection, you need to edit the `games.json` file in
   "logo": "assets/my_new_game/logo.png",
   "sound": "assets/my_new_game/sound.wav"
 }
+
 ```
 
 ### Art Requirements:
@@ -123,64 +125,86 @@ If you want to expand your collection, you need to edit the `games.json` file in
 > **⚠️ Important Note About Controls:**
 > Every user has different gamepads. By default, the emulators come pre-configured, but if you need to remap your buttons or adjust the resolution, you must do it manually before starting the Launcher:
 > 1. **For Dolphin (GameCube/Wii):**
->    Go into the `dolphin-emulator/` folder and run the binary `./dolphin-emu`. There you can configure your gamepads in the "Controllers" menu and it will be saved permanently.
+> Go into the `dolphin-emulator/` folder and run the binary `./dolphin-emu`. There you can configure your gamepads in the "Controllers" menu and it will be saved permanently.
 > 2. **For other emulators:**
->    Access the corresponding folders (`3ds/`, `nds/`) and run the emulators directly to make your interface and control adjustments.
+> Access the corresponding folders (`3ds/`, `nds/`) and run the emulators directly to make your interface and control adjustments.
 > 
 > 
 > Once configured to your liking, close the emulator and open the **3D All Stars Launcher** to enjoy the complete experience!
 
 ---
 
-
 ## Installation
-### Clone from Git
+
+### ⚠️ Prerequisite: Git LFS (Large File Storage)
+
+This repository contains pre-compiled binaries (like Dolphin Emulator) that are managed via Git LFS. **If you simply clone the repo without LFS, the emulator will fail to launch with "version not found" errors.**
+
+1. **Install Git LFS on your system:**
+* **Ubuntu/Debian:** `sudo apt install git-lfs`
+* **Arch:** `sudo pacman -S git-lfs`
+* **Fedora:** `sudo dnf install git-lfs`
+
+
+2. **Clone and Setup:**
 
 ```bash
-git clone https://github.com/retired64/3D-All-Stars-Linux-EDITION.git
+# 1. Clone the repository
+git clone [https://github.com/retired64/3D-All-Stars-Linux-EDITION.git](https://github.com/retired64/3D-All-Stars-Linux-EDITION.git)
 cd 3D-All-Stars-Linux-EDITION
-# Activate virtual env 
-python3 -m venv .venv
 
+# 2. Initialize LFS and pull the actual binaries
+git lfs install
+git lfs pull
+
+# 3. Grant execution permissions to emulators and run scripts
+chmod +x dolphin-emulator/dolphin-emu
+chmod +x games/*/run
+
+# 4. Set up Python Virtual Environment
+python3 -m venv .venv
 source .venv/bin/activate
 
+# 5. Install dependencies
 pip install -r requirements.txt 
 
+# 6. Launch!
 python3 main.py 
-```
 
+```
 
 <div align="center">
 
 **Enjoyed this project? Consider giving it a ⭐**
 
-![Made with Love](https://img.shields.io/badge/Made%20with-❤️-red)
-![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)
-![Gaming](https://img.shields.io/badge/Gaming-FF0000?logo=nintendo&logoColor=white)
+</div>
 
 ### Project Status
 
 This is a pre-release version.
 Expect:
-- Possible bugs
-- Missing features
-- Limited distro testing
+
+* Possible bugs
+* Missing features
+* Limited distro testing
 
 Community feedback is highly appreciated.
-
-</div>
 
 ---
 
 ## 🔗 Useful Links
 
-- [Report a Bug](https://github.com/retired64/3D-All-Stars-Linux-EDITION/issues/new?labels=bug)
-- [Request a Feature](https://github.com/retired64/3D-All-Stars-Linux-EDITION/issues/new?labels=enhancement)
-- [Join Discussions](https://github.com/retired64/3D-All-Stars-Linux-EDITION/discussions)
+* [Report a Bug](https://github.com/retired64/3D-All-Stars-Linux-EDITION/issues/new?labels=bug)
+* [Request a Feature](https://github.com/retired64/3D-All-Stars-Linux-EDITION/issues/new?labels=enhancement)
+* [Join Discussions](https://github.com/retired64/3D-All-Stars-Linux-EDITION/discussions)
 
 <div align="center">
-  <img src="src/img/retired64.png" alt="Retired64" width="400"/>
+<img src="src/img/retired64.png" alt="Retired64" width="400"/>
 </div>
 
-_Developed with ❤️ by **Retired64**_
+*Developed with ❤️ by **Retired64***
 [https://www.youtube.com/@Retired64](https://www.youtube.com/@Retired64)
+
+```
+
+```
