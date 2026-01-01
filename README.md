@@ -275,7 +275,8 @@ uname -m   # Should return "x86_64"
 
 <div align="center">
 <img src="src/img/retired64.png" alt="Retired64" width="400"/>
-</div>
 
-*Developed with ❤️ by **Retired64***
+  *Developed with ❤️ by **Retired64***
 [https://www.youtube.com/@Retired64](https://www.youtube.com/@Retired64)
+
+</div>
