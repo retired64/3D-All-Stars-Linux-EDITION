@@ -136,9 +136,8 @@ If you want to expand your collection, you need to edit the `games.json` file in
 
 ## Installation
 
-### ⚠️ Prerequisite: Git LFS (Large File Storage)
-
-This repository contains pre-compiled binaries (like Dolphin Emulator) that are managed via Git LFS. **If you simply clone the repo without LFS, the emulator will fail to launch with "version not found" errors.**
+> [!IMPORTANT]
+> This repository uses Git LFS. Standard clones will not include the working binaries. **If you simply clone the repo without LFS, the emulator will fail to launch with "version not found" errors.**
 
 1. **Install Git LFS on your system:**
 * **Ubuntu/Debian:** `sudo apt install git-lfs`
