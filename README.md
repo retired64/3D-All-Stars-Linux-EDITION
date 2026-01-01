@@ -150,7 +150,8 @@ This repository contains pre-compiled binaries (like Dolphin Emulator) that are 
 
 ```bash
 # 1. Clone the repository
-git clone [https://github.com/retired64/3D-All-Stars-Linux-EDITION.git](https://github.com/retired64/3D-All-Stars-Linux-EDITION.git)
+git clone --depth=1 https://github.com/retired64/3D-All-Stars-Linux-EDITION.git
+
 cd 3D-All-Stars-Linux-EDITION
 
 # 2. Initialize LFS and pull the actual binaries
@@ -158,8 +159,7 @@ git lfs install
 git lfs pull
 
 # 3. Grant execution permissions to emulators and run scripts
-chmod +x dolphin-emulator/dolphin-emu
-chmod +x games/*/run
+chmod +x dolphin-emulator/dolphin-emu 3ds/azahar.AppImage nds/desmume games/*/run
 
 # 4. Set up Python Virtual Environment
 python3 -m venv .venv
@@ -190,7 +190,77 @@ Expect:
 
 Community feedback is highly appreciated.
 
+## 🛠 Troubleshooting
+
+### Emulator does not launch
+- Make sure Git LFS pulled the binaries
+- Check execute permissions (`chmod +x`)
+- Run the `run` file manually to see errors
+
+## System Requirements
+
+### Minimum Specifications (Dolphin Emulator)
+
+To run **GameCube and Wii** games through Dolphin Emulator, your system must meet:
+
+| Component | Minimum Specification | Recommended |
+|-----------|----------------------|-------------|
+| **CPU** | Dual-core processor with high IPC<br>(Intel Core i3-6100 / AMD Ryzen 3 1200) | Quad-core at 3.5+ GHz with high IPC<br>(Intel Core i5-8400 / AMD Ryzen 5 3600 or newer) |
+| **GPU** | DirectX 11.1 or OpenGL 4.4 compatible<br>Intel HD 4000 / AMD Radeon HD 5000 / NVIDIA GT 730 | Mid-range or better GPU<br>NVIDIA GTX 1050 / AMD RX 560 or higher |
+| **RAM** | 2 GB | 4 GB or more |
+| **Operating System** | Ubuntu 20.04+ / Debian 10+ (64-bit)<br>(Kernel 5.4+) | Ubuntu 22.04+ / Debian 11+ (64-bit) |
+| **Disk Space** | 5 GB (excluding ROMs) | 10 GB+ (with multiple games) |
+| **Dependencies** | `libevdev`, `libusb`, `pulseaudio` | Proprietary GPU driver recommended |
+
+### Important Notes
+
+> **⚠️ CPU Performance:** Dolphin is a **dual-core application** that relies heavily on **IPC (Instructions Per Clock)** and **clockspeed**. Additional cores beyond four won't significantly improve performance. Dolphin uses two cores for main emulation, a third for other tasks, and a fourth for the OS and background processes.
+
+> **🎮 GPU Requirements:** Your GPU **must support DirectX 11.1 or OpenGL 4.4** to run Dolphin efficiently. Older GPUs (10+ years) or low-end models may struggle and are not recommended. Dolphin uses modern graphics APIs to reduce overhead.
+
+> **Driver Recommendations:**
+> - **NVIDIA:** Any modern mid-range or better GPU works well with Ubershaders
+> - **AMD:** Performs best with DirectX over OpenGL. Use D3D backend for optimal performance
+> - **Intel:** Iris Pro iGPUs work with D3D on Windows, but a discrete GPU is highly recommended
+
+> **RAM:** 2 GB minimum is required. RAM speed and quantity generally do not affect emulation speed significantly.
+
+> **Performance Varies by Game:** Some games use easy-to-emulate features and run full-speed on modest hardware, while others struggle even on powerful processors. Performance depends heavily on what the game instructs the emulator to do.
+
+### Additional Emulators Included
+
+- **Azahar/Citra (3DS):** Similar requirements to Dolphin but generally lighter. Dual-core CPU at 2.5+ GHz recommended.
+- **DeSmuME (DS):** Very lightweight, runs on almost any modern system with minimal resources.
+
 ---
+
+### Verify Compatibility
+
+Before installing, check your hardware meets the requirements:
+
+```bash
+# Check CPU information and cores
+lscpu | grep -E "Model name|CPU\(s\)"
+
+# Check GPU and OpenGL support (requires mesa-utils)
+glxinfo | grep "OpenGL version"
+
+# Check available RAM
+free -h
+
+# Verify 64-bit OS
+uname -m   # Should return "x86_64"
+```
+
+> **⚠️ 32-bit Systems Not Supported:** Dolphin requires a 64-bit operating system. The emulator will not run on 32-bit Linux distributions.
+
+### Performance Tips
+
+- **Use proprietary GPU drivers** (NVIDIA/AMD) instead of open-source alternatives for best performance
+- **Enable Ubershaders** in Dolphin settings to reduce stuttering
+- If experiencing lag, **reduce internal resolution** to 1x (native GameCube/Wii resolution)
+- Ensure **no background tasks** are consuming CPU resources during gameplay
+- For specific game performance questions, check the [Dolphin Wiki](dolphin-emu.org/docs/faq/#what-operating-systems-are-supported) compatibility database
 
 ## 🔗 Useful Links
 
@@ -198,13 +268,14 @@ Community feedback is highly appreciated.
 * [Request a Feature](https://github.com/retired64/3D-All-Stars-Linux-EDITION/issues/new?labels=enhancement)
 * [Join Discussions](https://github.com/retired64/3D-All-Stars-Linux-EDITION/discussions)
 
+## ⚠️ Legal Disclaimer
+
+> [!CAUTION]
+> This project does not include any ROMs or copyrighted game files. Users are responsible for providing legally obtained backups.
+
 <div align="center">
 <img src="src/img/retired64.png" alt="Retired64" width="400"/>
 </div>
 
 *Developed with ❤️ by **Retired64***
 [https://www.youtube.com/@Retired64](https://www.youtube.com/@Retired64)
-
-```
-
-```
