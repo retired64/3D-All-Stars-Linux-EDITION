@@ -12,3 +12,13 @@ games/marioGalaxy/SuperMarioGalaxy.wbfs
 games/marioGalaxy2/SuperMarioGalaxy2.wbfs
 games/mariosunshine/SuperMarioSunshine-TropicalFreeze.iso
 games/mariosunshine/SuperMarioSunshine.iso
+
+# Game ROMs (not included in repository)
+games/**/*.wbfs
+games/**/*.iso
+games/**/*.nds
+games/**/*.cci
+games/**/*.z64
+games/**/*.n64
+games/**/*.sav
+games/**/*.srm
