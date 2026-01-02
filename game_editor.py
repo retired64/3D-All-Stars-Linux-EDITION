@@ -499,7 +499,7 @@ class MainWindow(QMainWindow):
         self.load_games()
     
     def setup_ui(self):
-        self.setWindowTitle("3D All Stars Game Editor - Premium Edition")
+        self.setWindowTitle("3D All Stars Game Editor")
         self.setMinimumSize(1100, 750)
         
         # Estilo global

@@ -58,6 +58,114 @@ This project is ideal for:
   <img src="src/img/configure.png" alt="Configure" width="400"/>
 </div>
 
+## 🛠️ Game Editor Tool
+
+<div align="center">
+  <img src="src/img/editor-showcase.png" alt="Game Editor Interface" width="80%"/>
+</div>
+
+To make adding new games easier, we've included a **premium visual editor** that handles all the manual JSON editing and folder structure for you.
+
+### What Does It Do?
+
+The **3D All Stars Game Editor** is a modern desktop application that:
+- Automatically creates the correct folder structure (`games/` and `assets/`)
+- Generates launch scripts with emulator templates
+- Manages `games.json` entries with a visual interface
+- Copies and organizes your game assets (icons, logos, sounds)
+- Validates everything before saving
+
+### Quick Start
+
+1. **Launch the Editor:**
+   ```bash
+   python3 game_editor.py
+   ```
+
+2. **Add a New Game:**
+   - Click **"➕ NUEVO JUEGO"**
+   - Enter game name (e.g., "Zelda Twilight Princess")
+   - Select emulator template (Dolphin, Citra, etc.)
+   - Click **"Crear Estructura"** → folders auto-created
+   - Browse for icon, logo, and sound files → auto-copied to correct locations
+   - Click **"💾 GUARDAR"**
+
+3. **Done!** Your game is now in `games.json` and ready to appear in the launcher.
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| **Auto-Setup** | Pre-configured templates for Dolphin, Citra/Azahar, Wine, and custom scripts |
+| **File Browser** | Native OS dialogs with automatic file copying to correct folders |
+| **Visual Management** | See all your games in a list, edit or delete with one click |
+| **Safe Deletion** | Removes game entry AND deletes `games/` + `assets/` folders completely |
+| **Validation** | Checks that scripts exist before saving to prevent launcher errors |
+
+### Emulator Templates
+
+The editor includes these ready-to-use templates:
+
+- 🎮 **Dolphin (GameCube/Wii)**: For `.iso` / `.wbfs` files
+- 🎮 **Azahar/Citra (3DS)**: For `.3ds` / `.cci` files  
+- 🍷 **Wine (Windows)**: For `.exe` Windows games
+- 📝 **Vacio (Empty)**: Custom command template
+
+### Example Workflow
+
+**Adding a GameCube Game:**
+
+1. Click **➕ NUEVO JUEGO**
+2. Name: "Luigi's Mansion"
+3. Template: "Dolphin (GameCube/Wii)"
+4. Click **"Crear Estructura"** 
+   - Creates `games/luigis_mansion/run` with Dolphin command
+   - Creates `assets/luigis_mansion/` folder
+5. Browse and select:
+   - Icon image → auto-copied as `icon.png`
+   - Logo image → auto-copied as `logo.png`
+   - Sound effect → auto-copied as `sound.wav`
+6. Place your `LuigisMansion.iso` in `games/luigis_mansion/`
+7. Edit `games/luigis_mansion/run` to point to your ISO filename
+8. Click **💾 GUARDAR**
+
+Your game now appears in the launcher!
+
+### Manual Adjustments
+
+After using the editor, you can still manually:
+- Edit the `run` script to adjust emulator parameters
+- Replace assets by overwriting files in `assets/gamename/`
+- Modify `games.json` directly (though the editor is safer)
+
+### Controls
+
+| Button | Action |
+|--------|--------|
+| **➕ NUEVO JUEGO** | Add new game with auto-setup |
+| **✏️ EDITAR** | Modify selected game properties |
+| **🗑️ ELIMINAR** | Remove game + delete all associated files |
+| **💾 GUARDAR TODO** | Force save all changes to `games.json` |
+
+### Requirements
+
+```bash
+# Install PySide6 (Qt for Python)
+pip install PySide6
+```
+
+### Tips
+
+- Always use the editor's auto-setup for consistent folder structure
+- Test your `run` script manually before launching through the Launcher
+- Keep backups - the editor creates `games.json.backup` automatically
+- Use descriptive game names - they're auto-sanitized for folder names
+
+---
+
+**With the Game Editor, expanding your collection is just a few clicks away!** No more manual JSON editing or folder creation.
+
+
 For the Launcher to work, you need to place your files following the structure the program expects.
 
 ### 1. The Importance of the `run` File
