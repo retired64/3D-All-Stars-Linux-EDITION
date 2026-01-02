@@ -1,2 +1,3 @@
-#!/bin/bash
-../../nds/desmume Mario64DS.nds
+#!/bin/sh
+cd "$(dirname "$0")" || exit 1
+../../nds/melonDS -f Mario64DS.nds
