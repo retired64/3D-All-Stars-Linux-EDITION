@@ -158,8 +158,7 @@ git lfs install
 git lfs pull
 
 # 3. Grant execution permissions to emulators and run scripts
-chmod +x dolphin-emulator/dolphin-emu 3ds/azahar.AppImage nds/desmume games/*/run
-
+chmod +x dolphin-emulator/dolphin-emu 3ds/azahar.AppImage nds/melonDS games/*/run
 # 4. Set up Python Virtual Environment
 python3 -m venv .venv
 source .venv/bin/activate
