@@ -6,8 +6,9 @@ dolphin-emulator.zip
 bkup
 main.zip
 venv
+games/mario64/baserom.us.z64
 games/mario3dland/sm3dland.cci
 games/marioGalaxy/SuperMarioGalaxy.wbfs
 games/marioGalaxy2/SuperMarioGalaxy2.wbfs
-games/marioshunshine/SuperMarioSunshine-TropicalFreeze.iso
-
+games/mariosunshine/SuperMarioSunshine-TropicalFreeze.iso
+games/mariosunshine/SuperMarioSunshine.iso
