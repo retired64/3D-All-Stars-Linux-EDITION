@@ -64,7 +64,7 @@ This project is ideal for:
   <img src="src/img/editor-showcase.png" alt="Game Editor Interface" width="80%"/>
 </div>
 
-To make adding new games easier, we've included a **premium visual editor** that handles all the manual JSON editing and folder structure for you.
+To make adding new games easier, we've included a **visual editor** that handles all the manual JSON editing and folder structure for you.
 
 ### What Does It Do?
 
