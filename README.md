@@ -26,6 +26,9 @@ Welcome to 3D All Stars Linux EDITION! This program is designed to give you a co
 **Platform:** Linux (Ubuntu/Debian tested)  
 **Release Page:** [Download Latest Release](https://github.com/retired64/3D-All-Stars-Linux-EDITION/releases)
 
+> [!IMPORTANT]  
+> If you want to run the launcher from source code, make sure to click on the assets folder image and extract the zip file into the project's root directory.
+
 <div align="center">
   <a href="https://mega.nz/file/qc1iCJzI#xS6NSL1d8-ro8a3xRRbQoNT1IWgo1XMf4ANesjJEuL4" target="_blank">
     <img src="src/img/dl.png" alt="assets folder" width="400"/>
