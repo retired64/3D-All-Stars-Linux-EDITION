@@ -1,5 +1,6 @@
 <div align="center">
   <img src="src/img/logo.png" alt="Banner 3D All Stars Linux EDITION" width="100%">
+  <img src="src/img/showcase.webp" alt="Show Case Launcher" width="100%">
   <br><br>
   
   <a href="https://github.com/retired64/3D-All-Stars-Linux-EDITION/fork">
