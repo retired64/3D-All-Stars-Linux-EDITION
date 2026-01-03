@@ -22,65 +22,63 @@ from typing import List, Optional, Tuple, Dict, Any
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QListWidget, QLabel, QDialog, QLineEdit, QComboBox,
-    QFileDialog, QMessageBox, QFrame, QGroupBox, QSplitter, QScrollArea
+    QFileDialog, QMessageBox, QFrame, QGroupBox, QScrollArea, QSplitter,
+    QSizePolicy
 )
-from PySide6.QtCore import Qt, QSize, QUrl, QTimer
-from PySide6.QtGui import QFont, QPixmap, QImage, QDesktopServices, QColor
+from PySide6.QtCore import Qt, QSize, QTimer
+from PySide6.QtGui import QFont, QPixmap, QIcon, QPalette, QColor, QAction
 
 # =============================================================================
-# LOGGING & CONFIGURATION
+# 1. CONFIGURACIÓN DEL SISTEMA Y LOGGING
 # =============================================================================
 
-# Definir rutas base relativas al ejecutable/script
+# Definir BASE_DIR: Ubicación del script/ejecutable actual
 if getattr(sys, 'frozen', False):
     BASE_DIR = Path(sys.executable).parent.resolve()
 else:
     BASE_DIR = Path(__file__).parent.resolve()
 
-# Crear directorio de logs
+# Directorios de soporte
 LOG_DIR = BASE_DIR / "logs"
-LOG_DIR.mkdir(exist_ok=True)
 BACKUP_DIR = BASE_DIR / "backups"
+LOG_DIR.mkdir(exist_ok=True)
 BACKUP_DIR.mkdir(exist_ok=True)
 
+# Configuración de Logging
 logging.basicConfig(
     filename=LOG_DIR / "editor.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
+    format="%(asctime)s - [%(levelname)s] - %(message)s",
     encoding="utf-8"
 )
-
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
 logging.getLogger("").addHandler(console)
-
 logger = logging.getLogger(__name__)
 
-# Configuración Visual
+# Configuración Visual (Tema Oscuro Professional)
 THEME = {
-    "bg_main": "#0a0e14",
-    "bg_surface": "#101520",
-    "bg_card": "#151b26",
-    "bg_hover": "#1a2332",
-    "accent": "#00d9ff",
-    "accent_hover": "#00b8d9",
-    "accent_dark": "#008ca8",
-    "text_primary": "#e8eaed",
-    "text_secondary": "#9aa0a6",
-    "text_disabled": "#5f6368",
-    "success": "#34d399",
-    "warning": "#fbbf24",
-    "danger": "#f87171",
-    "border": "#1f2937",
+    "bg_main": "#0f172a",       # Slate 900
+    "bg_surface": "#1e293b",    # Slate 800
+    "bg_card": "#334155",       # Slate 700
+    "input_bg": "#0f172a",
+    "accent": "#38bdf8",        # Sky 400
+    "accent_hover": "#0ea5e9",  # Sky 500
+    "text_main": "#f1f5f9",     # Slate 100
+    "text_dim": "#94a3b8",      # Slate 400
+    "success": "#22c55e",       # Green 500
+    "danger": "#ef4444",        # Red 500
+    "warning": "#eab308",       # Yellow 500
+    "border": "#475569"         # Slate 600
 }
 
 # =============================================================================
-# CORE: DATA MODEL
+# 2. MODELO DE DATOS (Data Class)
 # =============================================================================
 
 @dataclass
 class Game:
-    """Modelo de datos estricto compatible con games.json del Launcher."""
+    """Representación estricta del esquema games.json."""
     nombre: str
     tipo: str = "binario"
     ruta_ejecutable: str = ""
@@ -93,801 +91,575 @@ class Game:
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> 'Game':
-        # Filtra claves extrañas para evitar corrupción del JSON
         valid_keys = cls.__annotations__.keys()
         clean_d = {k: v for k, v in d.items() if k in valid_keys}
         return cls(**clean_d)
 
-    def is_valid_for_launcher(self) -> Tuple[bool, List[str]]:
-        """Valida que el juego funcionará en main.py."""
+    def validate(self) -> Tuple[bool, List[str]]:
+        """Verifica integridad referencial y PERMISOS para el Launcher."""
         errors = []
-        
-        # 1. Validar campos obligatorios
         if not self.nombre:
             errors.append("El nombre es obligatorio.")
         
-        # 2. Validar existencia de archivos (Rutas relativas a BASE_DIR)
-        check_files = [
-            ("Ejecutable", self.ruta_ejecutable),
-            ("Icono", self.icon),
-            ("Logo", self.logo),
-            # El sonido es opcional en algunos casos, pero el launcher lo usa
-            ("Sonido", self.sound) 
-        ]
-
-        for label, rel_path in check_files:
-            if not rel_path:
-                errors.append(f"{label} no definido.")
+        # Verificar archivos requeridos
+        checks = [("Script", self.ruta_ejecutable), ("Icono", self.icon), ("Logo", self.logo)]
+        for lbl, path in checks:
+            if not path:
+                errors.append(f"Falta ruta para: {lbl}")
                 continue
             
-            full_path = BASE_DIR / rel_path
+            full_path = BASE_DIR / path
             if not full_path.exists():
-                errors.append(f"{label} no encontrado en: {rel_path}")
-            elif label == "Ejecutable":
-                if not os.access(full_path, os.X_OK) and not full_path.suffix == '.sh':
-                    # Warning leve, el launcher usa subprocess que a veces maneja permisos
-                    logger.warning(f"El ejecutable {rel_path} podría no tener permisos de ejecución (+x).")
-
+                errors.append(f"Archivo no encontrado: {path}")
+            
+            # [CRÍTICO] Verificar permisos de ejecución para el script
+            if lbl == "Script" and full_path.exists():
+                if not os.access(full_path, os.X_OK):
+                    errors.append(f"El script NO es ejecutable (+x): {path}")
+                    logger.warning(f"Permisos insuficientes en: {full_path}")
+        
         return len(errors) == 0, errors
 
 # =============================================================================
-# CORE: EMULATOR & STRUCTURE MANAGER
+# 3. GESTOR DE EMULADORES Y ESTRUCTURA
 # =============================================================================
 
 class EmulatorManager:
-    """Detecta emuladores instalados y gestiona plantillas."""
+    """Detecta emuladores y genera comandos de lanzamiento."""
     
-    DEFAULT_TEMPLATES = {
-        "Vacio (Solo estructura)": {
-            "cmd": "# Comando personalizado aquí",
-            "desc": "Estructura vacía"
-        },
-        "Wine (Windows .exe)": {
-            "cmd": "wine \"./game.exe\"",
-            "desc": "Wine Wrapper"
-        }
-    }
-
     def __init__(self):
-        self.templates = self.DEFAULT_TEMPLATES.copy()
-        self.detect_emulators()
+        self.templates = {
+            "Vacio (Solo estructura)": {
+                "cmd": "# Comando manual aquí",
+                "desc": "Plantilla en blanco"
+            },
+            "Wine (Windows EXE)": {
+                "cmd": "wine \"./game.exe\"",
+                "desc": "Contenedor Wine"
+            }
+        }
+        self.detect_local_emulators()
 
-    def detect_emulators(self):
-        """Escanea rutas relativas comunes usadas por el proyecto."""
-        # Definición de rutas relativas comunes (subir dos niveles desde bin/games)
-        checks = [
-            ("Dolphin (GameCube/Wii)", "../../dolphin-emulator/dolphin-emu", "-b -e \"./game.iso\""),
-            ("Citra/Azahar (3DS)", "../../3ds/azahar.AppImage", "\"./game.3ds\""),
-            ("MelonDS (NDS)", "../../nds/melonDS", "\"./game.nds\""),
-            ("Ryujinx (Switch)", "../../ryujinx/Ryujinx", "\"./game.nsp\"")
+    def detect_local_emulators(self):
+        """
+        Escanea carpetas dentro del proyecto en busca de emuladores.
+        Usa rutas relativas ../../ para que funcionen desde games/juego/run
+        """
+        
+        # LISTA MAESTRA DE POSIBLES UBICACIONES
+        # Formato: (Nombre, Ruta relativa desde ROOT, Argumentos Típicos)
+        candidates = [
+            ("Dolphin (GameCube/Wii)", "dolphin-emulator/dolphin-emu", "-b -e \"./game.iso\""),
+            ("Citra/Azahar (3DS)", "3ds/azahar.AppImage", "\"./game.3ds\""),
+            ("MelonDS (NDS)", "nds/melonDS", "\"./game.nds\""),
+            ("Ryujinx (Switch)", "ryujinx/Ryujinx", "\"./game.nsp\""),
+            ("PCSX2 (PS2)", "pcsx2/pcsx2-qt", "-batch \"./game.iso\""),
+            ("PPSSPP (PSP)", "ppsspp/PPSSPPSDL", "\"./game.iso\"")
         ]
 
-        logger.info("Escaneando emuladores...")
-        for name, rel_path, args in checks:
-            # Construir ruta absoluta para verificar existencia
-            # Asumimos que BASE_DIR está al nivel de main.py
-            full_path = (BASE_DIR / rel_path).resolve()
+        logger.info("--- Iniciando escaneo de emuladores ---")
+        
+        for name, rel_path, args in candidates:
+            # 1. Verificar existencia física (Desde la raíz del proyecto)
+            full_check_path = BASE_DIR / rel_path
             
-            if full_path.exists():
-                logger.info(f"Emulador detectado: {name} en {rel_path}")
+            if full_check_path.exists():
+                # 2. Generar comando relativo para el script 'run' (Sube 2 niveles)
+                script_cmd_path = f"../../{rel_path}"
+                
                 self.templates[name] = {
-                    "cmd": f"{rel_path} {args}",
-                    "desc": f"Auto-detectado: {name}"
+                    "cmd": f"{script_cmd_path} {args}",
+                    "desc": f"Auto-detectado en: {rel_path}"
                 }
+                
+                # [DEBUG CRÍTICO] Logs solicitados
+                logger.info(f"📍 Emulador: {name}")
+                logger.info(f"   - Ruta física: {full_check_path}")
+                logger.info(f"   - Comando run: {script_cmd_path} {args}")
+                logger.info("")
             else:
-                # Opcional: Agregar plantilla genérica aunque no exista el binario
-                # para permitir configuración manual
-                self.templates[f"{name} (No detectado)"] = {
-                    "cmd": f"{rel_path} {args}",
-                    "desc": "Binario no encontrado automáticamente"
-                }
+                logger.debug(f"No encontrado: {rel_path}")
 
 class StructureHelper:
-    """Maneja la creación de archivos y carpetas de forma segura."""
+    """Manejo seguro del sistema de archivos."""
 
     @staticmethod
-    def sanitize_name(name: str) -> str:
-        """Sanitiza el nombre para uso en rutas de archivo."""
+    def sanitize(name: str) -> str:
         s = name.lower().strip()
         s = re.sub(r'[^\w\s-]', '', s)
         return re.sub(r'[\s_-]+', '_', s)
 
     @staticmethod
-    def create_game_structure(game_name: str, template_data: dict) -> Dict[str, str]:
-        """
-        Crea la estructura standard:
-        games/{safe_name}/run
-        assets/{safe_name}/{icon,logo,sound}
-        """
-        safe_name = StructureHelper.sanitize_name(game_name)
+    def create_game_files(name: str, template: dict) -> Dict[str, str]:
+        safe_name = StructureHelper.sanitize(name)
         
-        # Rutas absolutas
+        # Rutas absolutas para crear carpetas
         game_dir = BASE_DIR / "games" / safe_name
         assets_dir = BASE_DIR / "assets" / safe_name
         
-        try:
-            game_dir.mkdir(parents=True, exist_ok=True)
-            assets_dir.mkdir(parents=True, exist_ok=True)
+        game_dir.mkdir(parents=True, exist_ok=True)
+        assets_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Crear script RUN
+        run_path = game_dir / "run"
+        content = (
+            "#!/bin/sh\n"
+            "cd \"$(dirname \"$0\")\" || exit 1\n"
+            f"# Generado por Editor - {template['desc']}\n"
+            f"{template['cmd']}\n"
+        )
+        
+        with open(run_path, "w", encoding="utf-8") as f:
+            f.write(content)
             
-            # Crear script RUN
-            run_script_path = game_dir / "run"
-            with open(run_script_path, "w", encoding="utf-8") as f:
-                f.write(
-                    "#!/bin/sh\n"
-                    "cd \"$(dirname \"$0\")\" || exit 1\n"
-                    f"# Generado por Game Editor - {template_data['desc']}\n"
-                    f"{template_data['cmd']}\n"
-                )
-            
-            # Dar permisos de ejecución (+x)
-            st = os.stat(run_script_path)
-            os.chmod(run_script_path, st.st_mode | stat.S_IEXEC)
-            
-            logger.info(f"Estructura creada para: {game_name}")
-            
-            # Retornar rutas relativas para el JSON
-            return {
-                "ruta_ejecutable": f"games/{safe_name}/run",
-                "icon": f"assets/{safe_name}/icon.png",
-                "logo": f"assets/{safe_name}/logo.png",
-                "sound": f"assets/{safe_name}/sound.wav"
-            }
-            
-        except Exception as e:
-            logger.error(f"Error creando estructura: {e}")
-            raise e
+        # Permisos +x (CRÍTICO para Launcher)
+        os.chmod(run_path, os.stat(run_path).st_mode | stat.S_IEXEC)
+        
+        # Rutas relativas para el JSON
+        return {
+            "ruta_ejecutable": f"games/{safe_name}/run",
+            "icon": f"assets/{safe_name}/icon.png",
+            "logo": f"assets/{safe_name}/logo.png",
+            "sound": f"assets/{safe_name}/sound.wav"
+        }
 
 # =============================================================================
-# LOGIC: GAME MANAGER
+# 4. GESTOR DE BASE DE DATOS (JSON)
 # =============================================================================
 
 class GameManager:
     def __init__(self, filename="games.json"):
-        self.filename = BASE_DIR / filename
+        self.filepath = BASE_DIR / filename
         self.games: List[Game] = []
-        self.emulator_manager = EmulatorManager()
+        self.emulator_mgr = EmulatorManager()
 
-    def load_games(self) -> List[Game]:
-        """Carga games.json con manejo de errores robusto."""
-        if not self.filename.exists():
-            logger.warning(f"{self.filename} no existe. Iniciando lista vacía.")
+    def load(self):
+        if not self.filepath.exists():
             return []
-            
         try:
-            with open(self.filename, "r", encoding="utf-8") as f:
+            with open(self.filepath, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 self.games = [Game.from_dict(x) for x in data]
-            logger.info(f"Cargados {len(self.games)} juegos.")
             return self.games
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON corrupto: {e}")
-            self.backup_config(suffix="_CORRUPT")
-            return []
         except Exception as e:
-            logger.critical(f"Error fatal cargando juegos: {e}")
+            logger.error(f"Error cargando JSON: {e}")
             return []
 
-    def save_games(self) -> bool:
-        """Guarda games.json y genera backup previo."""
+    def save(self):
+        # 1. Backup
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        if self.filepath.exists():
+            shutil.copy2(self.filepath, BACKUP_DIR / f"games_backup_{timestamp}.json")
+        
+        # 2. Guardar
         try:
-            # 1. Crear backup automático
-            self.backup_config()
-            
-            # 2. Guardar nuevo archivo
-            with open(self.filename, "w", encoding="utf-8") as f:
+            with open(self.filepath, "w", encoding="utf-8") as f:
                 json.dump([g.to_dict() for g in self.games], f, indent=2, ensure_ascii=False)
-            
-            logger.info("Base de datos guardada exitosamente.")
             return True
         except Exception as e:
-            logger.error(f"Error guardando juegos: {e}")
+            logger.critical(f"Fallo al guardar: {e}")
             return False
 
-    def backup_config(self, suffix: str = ""):
-        """Crea una copia de seguridad en la carpeta backups."""
-        if not self.filename.exists():
-            return
-            
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_name = f"games_{timestamp}{suffix}.json"
-        backup_path = BACKUP_DIR / backup_name
-        
-        try:
-            shutil.copy2(self.filename, backup_path)
-            
-            # Mantener solo los últimos 10 backups
-            backups = sorted(BACKUP_DIR.glob("games_*.json"), key=os.path.getmtime)
-            while len(backups) > 10:
-                os.remove(backups.pop(0))
-                
-            logger.info(f"Backup creado: {backup_name}")
-        except Exception as e:
-            logger.error(f"Fallo al crear backup: {e}")
-
-    def delete_game_assets(self, game: Game) -> Tuple[List[str], List[str]]:
-        """Elimina físicamente las carpetas asociadas."""
-        safe_name = StructureHelper.sanitize_name(game.nombre)
+    def delete_game_assets(self, game: Game):
+        """Elimina carpetas físicas."""
+        safe = StructureHelper.sanitize(game.nombre)
+        paths = [BASE_DIR / "games" / safe, BASE_DIR / "assets" / safe]
         deleted = []
-        errors = []
-
-        paths_to_remove = [
-            BASE_DIR / "assets" / safe_name,
-            BASE_DIR / "games" / safe_name
-        ]
-
-        for path in paths_to_remove:
-            if path.exists():
-                try:
-                    shutil.rmtree(path)
-                    deleted.append(str(path.relative_to(BASE_DIR)))
-                except Exception as e:
-                    errors.append(f"Error borrando {path.name}: {e}")
-        
-        return deleted, errors
+        for p in paths:
+            if p.exists():
+                shutil.rmtree(p)
+                deleted.append(p.name)
+        return deleted
 
 # =============================================================================
-# UI COMPONENTS
+# 5. COMPONENTES DE UI PERSONALIZADOS
 # =============================================================================
 
-class StyledButton(QPushButton):
-    def __init__(self, text, style_type="primary", parent=None):
+class ModernButton(QPushButton):
+    def __init__(self, text, variant="primary", parent=None):
         super().__init__(text, parent)
-        self.style_type = style_type
         self.setCursor(Qt.PointingHandCursor)
-        self.apply_style()
+        self.variant = variant
+        self.update_style()
         
-    def apply_style(self):
-        styles = {
-            "primary": (THEME["accent"], THEME["accent_hover"], "#000000"),
-            "danger": (THEME["danger"], "#dc2626", "#ffffff"),
-            "success": (THEME["success"], "#10b981", "#000000"),
-            "secondary": (THEME["bg_card"], THEME["bg_hover"], THEME["text_primary"]),
+    def update_style(self):
+        colors = {
+            "primary": (THEME["accent"], THEME["bg_main"]),
+            "secondary": (THEME["bg_card"], THEME["text_main"]),
+            "danger": (THEME["danger"], "#ffffff"),
+            "success": (THEME["success"], "#ffffff")
         }
-        
-        bg, bg_hover, text_color = styles.get(self.style_type, styles["secondary"])
+        bg, txt = colors.get(self.variant, colors["secondary"])
         
         self.setStyleSheet(f"""
             QPushButton {{
                 background-color: {bg};
-                color: {text_color};
+                color: {txt};
                 border: none;
                 border-radius: 6px;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: 700;
-            }}
-            QPushButton:hover {{
-                background-color: {bg_hover};
-            }}
-            QPushButton:pressed {{
-                background-color: {THEME["accent_dark"]};
-            }}
-        """)
-
-class ImagePreviewWidget(QLabel):
-    def __init__(self, size=(200, 150)):
-        super().__init__()
-        self.setFixedSize(*size)
-        self.setStyleSheet(f"border: 2px dashed {THEME['border']}; border-radius: 8px; background: {THEME['bg_surface']};")
-        self.setAlignment(Qt.AlignCenter)
-        self.setText("Sin Vista Previa")
-
-    def load_image(self, path: str):
-        full_path = BASE_DIR / path
-        if full_path.exists() and full_path.suffix.lower() in ['.png', '.jpg', '.jpeg']:
-            pixmap = QPixmap(str(full_path))
-            if not pixmap.isNull():
-                self.setPixmap(pixmap.scaled(self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
-                return
-        self.setText("Imagen no válida\no no encontrada")
-        self.setPixmap(QPixmap()) # Clear
-
-# =============================================================================
-# DIALOGS
-# =============================================================================
-
-class GameFormDialog(QDialog):
-    def __init__(self, parent, manager: GameManager, game: Optional[Game] = None):
-        super().__init__(parent)
-        self.manager = manager
-        self.game_result = None
-        self.editing_mode = game is not None
-        
-        self.setup_ui()
-        if game:
-            self.load_data(game)
-            
-    def setup_ui(self):
-        self.setWindowTitle("Editor de Juego" if not self.editing_mode else "Editar Juego")
-        self.setMinimumSize(900, 750)
-        self.setStyleSheet(f"""
-            QDialog {{ background-color: {THEME["bg_main"]}; color: {THEME["text_primary"]}; }}
-            QLabel {{ color: {THEME["text_primary"]}; font-size: 13px; }}
-            QLineEdit, QComboBox {{
-                background-color: {THEME["bg_card"]};
-                color: {THEME["text_primary"]};
-                border: 1px solid {THEME["border"]};
-                border-radius: 4px;
-                padding: 8px;
-            }}
-            QLineEdit:focus {{ border: 1px solid {THEME["accent"]}; }}
-            QGroupBox {{
-                border: 1px solid {THEME["border"]};
-                border-radius: 6px;
-                margin-top: 12px;
-                padding-top: 24px;
-                color: {THEME["accent"]};
+                padding: 10px 16px;
                 font-weight: bold;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{ opacity: 0.9; }}
+        """)
+
+class AssetDropZone(QLabel):
+    """Widget para previsualizar imágenes."""
+    def __init__(self, text="Sin Imagen"):
+        super().__init__(text)
+        self.setFixedSize(120, 100)
+        self.setAlignment(Qt.AlignCenter)
+        self.setStyleSheet(f"""
+            QLabel {{
+                border: 2px dashed {THEME['border']};
+                border-radius: 8px;
+                color: {THEME['text_dim']};
+                background: {THEME['input_bg']};
             }}
         """)
+        self.setScaledContents(True)
+
+    def load_path(self, rel_path):
+        full = BASE_DIR / rel_path
+        if full.exists() and full.suffix.lower() in ['.png', '.jpg']:
+            pix = QPixmap(str(full))
+            self.setPixmap(pix)
+        else:
+            self.setText("No encontrado")
+            self.setStyleSheet(f"border: 2px solid {THEME['danger']}; color: {THEME['danger']};")
+
+# =============================================================================
+# 6. DIÁLOGOS Y VENTANAS
+# =============================================================================
+
+class GameDialog(QDialog):
+    def __init__(self, parent, manager, game=None):
+        super().__init__(parent)
+        self.mgr = manager
+        self.result_game = None
+        self.setup_ui()
+        if game: self.load_game(game)
+
+    def setup_ui(self):
+        self.setWindowTitle("Editor de Juego")
+        self.resize(850, 650)
+        self.setStyleSheet(f"background: {THEME['bg_main']}; color: {THEME['text_main']};")
         
+        # [MEJORA CRÍTICA] Usar ScrollArea para evitar desbordamiento
         main_layout = QVBoxLayout(self)
         
-        # Header
-        header = QLabel("Configuración del Juego")
-        header.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {THEME['text_primary']};")
-        main_layout.addWidget(header)
-
-        # Content Scroll
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("background: transparent; border: none;")
+        
         content_widget = QWidget()
-        self.layout = QVBoxLayout(content_widget)
+        layout = QVBoxLayout(content_widget)
         
-        # 1. Info Básica
-        self.layout.addWidget(QLabel("Nombre del Juego:"))
-        self.name_input = QLineEdit()
-        self.layout.addWidget(self.name_input)
+        # --- Nombre y Tipo ---
+        row1 = QHBoxLayout()
+        self.name_inp = QLineEdit()
+        self.name_inp.setPlaceholderText("Nombre del Juego")
+        self.name_inp.setStyleSheet(f"background: {THEME['input_bg']}; border: 1px solid {THEME['border']}; padding: 8px; color: {THEME['text_main']};")
         
-        type_layout = QHBoxLayout()
-        type_layout.addWidget(QLabel("Tipo:"))
-        self.type_combo = QComboBox()
-        self.type_combo.addItems(["binario", "script", "appimage", "wine"])
-        type_layout.addWidget(self.type_combo)
-        self.layout.addLayout(type_layout)
+        self.type_cmb = QComboBox()
+        self.type_cmb.addItems(["binario", "script", "appimage"])
+        self.type_cmb.setStyleSheet(self.name_inp.styleSheet())
+        
+        row1.addWidget(QLabel("Nombre:"))
+        row1.addWidget(self.name_inp, 2)
+        row1.addWidget(QLabel("Tipo:"))
+        row1.addWidget(self.type_cmb, 1)
+        layout.addLayout(row1)
 
-        # 2. Auto Configuración
-        auto_group = QGroupBox("🚀 Asistente de Estructura")
-        auto_layout = QHBoxLayout()
+        # --- Asistente de Estructura ---
+        grp = QGroupBox("⚡ Configuración Automática")
+        grp.setStyleSheet(f"QGroupBox {{ border: 1px solid {THEME['border']}; margin-top: 10px; padding: 15px; font-weight: bold; color: {THEME['accent']}; }}")
+        gl = QHBoxLayout()
         
-        self.template_combo = QComboBox()
-        # Cargar plantillas del EmulatorManager
-        for name in self.manager.emulator_manager.templates.keys():
-            self.template_combo.addItem(name)
-            
-        auto_layout.addWidget(QLabel("Plantilla:"))
-        auto_layout.addWidget(self.template_combo, 1)
+        self.tmpl_cmb = QComboBox()
+        for k in self.mgr.emulator_mgr.templates.keys():
+            self.tmpl_cmb.addItem(k)
         
-        create_btn = StyledButton("Crear Carpetas y Scripts", "success")
-        create_btn.clicked.connect(self.create_structure)
-        auto_layout.addWidget(create_btn)
+        gen_btn = ModernButton("Generar Estructura", "success")
+        gen_btn.clicked.connect(self.generate_files)
         
-        auto_group.setLayout(auto_layout)
-        self.layout.addWidget(auto_group)
+        gl.addWidget(QLabel("Plantilla:"))
+        gl.addWidget(self.tmpl_cmb, 1)
+        gl.addWidget(gen_btn)
+        grp.setLayout(gl)
+        layout.addWidget(grp)
 
-        # 3. Archivos (Inputs + Browsers)
-        files_group = QGroupBox("📁 Archivos y Assets")
-        files_layout = QVBoxLayout()
+        # --- Archivos ---
+        files_grp = QGroupBox("📁 Rutas de Archivos")
+        files_grp.setStyleSheet(grp.styleSheet())
+        fl = QVBoxLayout()
         
-        self.path_inputs = {}
-        self.previews = {}
+        self.inputs = {}
+        fields = [("ruta_ejecutable", "Script"), ("icon", "Icono"), ("logo", "Logo"), ("sound", "Audio")]
         
-        fields = [
-            ("ruta_ejecutable", "Script Ejecutable", "file"),
-            ("icon", "Icono (PNG/JPG)", "image"),
-            ("logo", "Logo (PNG/JPG)", "image"),
-            ("sound", "Sonido (WAV)", "audio")
-        ]
-        
-        for key, label, ftype in fields:
+        for key, lbl in fields:
             h = QHBoxLayout()
-            h.addWidget(QLabel(label))
-            
             inp = QLineEdit()
-            inp.setPlaceholderText(f"Ruta relativa (ej: games/nombre/run)")
-            self.path_inputs[key] = inp
-            h.addWidget(inp, 1)
+            inp.setPlaceholderText(f"Ruta relativa a {lbl}")
+            inp.setStyleSheet(self.name_inp.styleSheet())
             
-            browse = QPushButton("...")
-            browse.setFixedWidth(40)
-            browse.setStyleSheet(f"background: {THEME['bg_card']}; color: {THEME['accent']}; border: 1px solid {THEME['border']};")
-            browse.clicked.connect(lambda c, k=key, t=ftype: self.browse_file(k, t))
-            h.addWidget(browse)
+            btn = QPushButton("...")
+            btn.setFixedWidth(30)
+            btn.setStyleSheet(f"background: {THEME['bg_card']}; color: white; border: none;")
+            btn.clicked.connect(lambda _, k=key: self.browse(k))
             
-            files_layout.addLayout(h)
+            h.addWidget(QLabel(f"{lbl}:"))
+            h.addWidget(inp)
+            h.addWidget(btn)
+            fl.addLayout(h)
+            self.inputs[key] = inp
             
-            # Previsualización para imágenes
-            if ftype == "image":
-                prev = ImagePreviewWidget()
-                h.addWidget(prev)
-                self.previews[key] = prev
-                inp.textChanged.connect(lambda t, k=key: self.previews[k].load_image(t))
-
-        files_group.setLayout(files_layout)
-        self.layout.addWidget(files_group)
+        files_grp.setLayout(fl)
+        layout.addWidget(files_grp)
         
+        # Añadir contenido al scroll
         scroll.setWidget(content_widget)
         main_layout.addWidget(scroll)
 
-        # Footer Buttons
-        btn_layout = QHBoxLayout()
+        # --- Footer (Fuera del Scroll) ---
+        footer = QHBoxLayout()
+        save_btn = ModernButton("Guardar", "primary")
+        save_btn.clicked.connect(self.save)
+        cancel_btn = ModernButton("Cancelar", "danger")
+        cancel_btn.clicked.connect(self.reject)
         
-        self.check_btn = StyledButton("🔍 Validar Compatibilidad", "secondary")
-        self.check_btn.clicked.connect(self.validate_current)
-        btn_layout.addWidget(self.check_btn)
-        
-        btn_layout.addStretch()
-        
-        cancel = StyledButton("Cancelar", "danger")
-        cancel.clicked.connect(self.reject)
-        btn_layout.addWidget(cancel)
-        
-        save = StyledButton("Guardar Juego", "success")
-        save.clicked.connect(self.save)
-        btn_layout.addWidget(save)
-        
-        main_layout.addLayout(btn_layout)
+        footer.addStretch()
+        footer.addWidget(cancel_btn)
+        footer.addWidget(save_btn)
+        main_layout.addLayout(footer)
 
-    def create_structure(self):
-        name = self.name_input.text()
+    def generate_files(self):
+        name = self.name_inp.text()
         if not name:
-            QMessageBox.warning(self, "Error", "Debes escribir un nombre primero.")
+            QMessageBox.warning(self, "Error", "Escribe un nombre primero")
             return
-
-        template_name = self.template_combo.currentText()
-        template_data = self.manager.emulator_manager.templates.get(template_name)
-        
-        if not template_data:
-            return
-
-        try:
-            paths = StructureHelper.create_game_structure(name, template_data)
-            for key, val in paths.items():
-                self.path_inputs[key].setText(val)
-            QMessageBox.information(self, "Éxito", f"Estructura creada para '{name}'\nSe han generado las carpetas y el script run.")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo crear la estructura: {e}")
-
-    def browse_file(self, key, ftype):
-        start_dir = str(BASE_DIR)
-        if ftype == "image":
-            f, _ = QFileDialog.getOpenFileName(self, "Seleccionar Imagen", start_dir, "Images (*.png *.jpg *.jpeg)")
-        elif ftype == "audio":
-            f, _ = QFileDialog.getOpenFileName(self, "Seleccionar Audio", start_dir, "Audio (*.wav *.mp3 *.ogg)")
-        else:
-            f, _ = QFileDialog.getOpenFileName(self, "Seleccionar Archivo", start_dir, "All Files (*)")
             
-        if f:
-            # Intentar convertir a ruta relativa
-            path_obj = Path(f)
+        tmpl_name = self.tmpl_cmb.currentText()
+        tmpl = self.mgr.emulator_mgr.templates[tmpl_name]
+        
+        try:
+            paths = StructureHelper.create_game_files(name, tmpl)
+            for k, v in paths.items():
+                self.inputs[k].setText(v)
+            QMessageBox.information(self, "Éxito", "Carpetas y Script RUN creados correctamente.")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", str(e))
+
+    def browse(self, key):
+        start = str(BASE_DIR)
+        path, _ = QFileDialog.getOpenFileName(self, "Buscar", start)
+        if path:
             try:
-                rel = path_obj.relative_to(BASE_DIR)
-                self.path_inputs[key].setText(str(rel))
+                rel = Path(path).relative_to(BASE_DIR)
+                self.inputs[key].setText(str(rel))
             except ValueError:
-                # Si está fuera de la carpeta base, preguntar si importar
-                reply = QMessageBox.question(
-                    self, "Importar Archivo",
-                    "El archivo está fuera de la carpeta del proyecto.\n¿Quieres copiarlo a la carpeta 'assets'?",
-                    QMessageBox.Yes | QMessageBox.No
-                )
-                if reply == QMessageBox.Yes:
-                    self.import_asset(path_obj, key)
-                else:
-                    self.path_inputs[key].setText(f) # Se queda absoluta (puede romper el launcher portable)
+                self.inputs[key].setText(path)
 
-    def import_asset(self, src_path: Path, key: str):
-        name = self.name_input.text()
-        if not name:
-            QMessageBox.warning(self, "Error", "Define el nombre del juego antes de importar assets.")
-            return
-            
-        safe_name = StructureHelper.sanitize_name(name)
-        dest_dir = BASE_DIR / "assets" / safe_name
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        
-        dest_path = dest_dir / src_path.name
-        try:
-            shutil.copy2(src_path, dest_path)
-            rel = dest_path.relative_to(BASE_DIR)
-            self.path_inputs[key].setText(str(rel))
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Fallo al copiar archivo: {e}")
-
-    def load_data(self, game: Game):
-        self.name_input.setText(game.nombre)
-        self.type_combo.setCurrentText(game.tipo)
-        self.path_inputs["ruta_ejecutable"].setText(game.ruta_ejecutable)
-        self.path_inputs["icon"].setText(game.icon)
-        self.path_inputs["logo"].setText(game.logo)
-        self.path_inputs["sound"].setText(game.sound)
-
-    def validate_current(self):
-        """Ejecuta la validación sin cerrar el diálogo."""
-        temp_game = self._build_game_object()
-        ok, errors = temp_game.is_valid_for_launcher()
-        
-        if ok:
-            QMessageBox.information(self, "Compatible", "✅ El juego parece 100% compatible con el Launcher.")
-        else:
-            msg = "\n".join([f"• {e}" for e in errors])
-            QMessageBox.warning(self, "Problemas Detectados", f"Se encontraron problemas:\n\n{msg}")
-
-    def _build_game_object(self) -> Game:
-        return Game(
-            nombre=self.name_input.text(),
-            tipo=self.type_combo.currentText(),
-            ruta_ejecutable=self.path_inputs["ruta_ejecutable"].text(),
-            icon=self.path_inputs["icon"].text(),
-            logo=self.path_inputs["logo"].text(),
-            sound=self.path_inputs["sound"].text()
-        )
+    def load_game(self, game):
+        self.name_inp.setText(game.nombre)
+        self.type_cmb.setCurrentText(game.tipo)
+        self.inputs["ruta_ejecutable"].setText(game.ruta_ejecutable)
+        self.inputs["icon"].setText(game.icon)
+        self.inputs["logo"].setText(game.logo)
+        self.inputs["sound"].setText(game.sound)
 
     def save(self):
-        game = self._build_game_object()
-        
-        # Validación crítica antes de guardar
-        ok, errors = game.is_valid_for_launcher()
+        g = Game(
+            nombre=self.name_inp.text(),
+            tipo=self.type_cmb.currentText(),
+            ruta_ejecutable=self.inputs["ruta_ejecutable"].text(),
+            icon=self.inputs["icon"].text(),
+            logo=self.inputs["logo"].text(),
+            sound=self.inputs["sound"].text()
+        )
+        ok, errs = g.validate()
         if not ok:
-            res = QMessageBox.warning(
-                self, "Advertencia de Compatibilidad",
-                "El juego tiene configuraciones que harán fallar al Launcher:\n\n" + 
-                "\n".join(errors) + 
-                "\n\n¿Guardar de todos modos?",
-                QMessageBox.Yes | QMessageBox.No
-            )
-            if res == QMessageBox.No:
-                return
-
-        self.game_result = game
+            msg = "\n".join(errs)
+            r = QMessageBox.warning(self, "Validación", f"Problemas detectados:\n{msg}\n\n¿Guardar igual?", QMessageBox.Yes | QMessageBox.No)
+            if r == QMessageBox.No: return
+            
+        self.result_game = g
         self.accept()
 
 # =============================================================================
-# MAIN WINDOW
+# 7. VENTANA PRINCIPAL
 # =============================================================================
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.manager = GameManager()
-        self.setup_ui()
-        self.refresh_list()
+        self.mgr = GameManager()
+        self.init_ui()
+        self.refresh()
+
+    def init_ui(self):
+        self.setWindowTitle("3D All Stars - Game Editor")
+        self.resize(1000, 700)
         
-    def setup_ui(self):
-        self.setWindowTitle("3D All Stars - Gestor de Juegos")
-        self.setMinimumSize(1000, 700)
-        self.setWindowIcon(QIcon(str(BASE_DIR / "assets" / "vinyl_disc.png"))) # Intento de cargar icono si existe
-        
-        # Central Widget
+        # Widget Central
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QHBoxLayout(central)
-        
-        # --- LEFT PANEL (LIST) ---
+        central.setStyleSheet(f"background: {THEME['bg_main']};")
+
+        # --- Panel Izquierdo (Lista) ---
         left_panel = QFrame()
         left_layout = QVBoxLayout(left_panel)
-        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_panel.setStyleSheet(f"background: {THEME['bg_surface']}; border-right: 1px solid {THEME['border']};")
         
-        header_label = QLabel("BIBLIOTECA")
-        header_label.setStyleSheet(f"color: {THEME['text_disabled']}; font-weight: bold; letter-spacing: 1px;")
-        left_layout.addWidget(header_label)
+        title = QLabel("BIBLIOTECA")
+        title.setStyleSheet(f"color: {THEME['accent']}; font-weight: bold; font-size: 16px; letter-spacing: 2px;")
+        left_layout.addWidget(title)
         
-        self.game_list = QListWidget()
-        self.game_list.setStyleSheet(f"""
-            QListWidget {{
-                background-color: {THEME['bg_surface']};
-                border: 1px solid {THEME['border']};
-                border-radius: 8px;
-                color: {THEME['text_primary']};
-                font-size: 14px;
-            }}
-            QListWidget::item {{ padding: 10px; }}
-            QListWidget::item:selected {{ background-color: {THEME['accent']}; color: black; }}
+        self.list_widget = QListWidget()
+        self.list_widget.setStyleSheet(f"""
+            QListWidget {{ border: none; background: transparent; color: {THEME['text_main']}; }}
+            QListWidget::item {{ padding: 12px; border-radius: 6px; margin-bottom: 4px; }}
+            QListWidget::item:selected {{ background: {THEME['accent']}; color: black; }}
+            QListWidget::item:hover {{ background: {THEME['bg_card']}; }}
         """)
-        self.game_list.currentRowChanged.connect(self.on_selection_change)
-        left_layout.addWidget(self.game_list)
+        self.list_widget.currentRowChanged.connect(self.on_select)
+        left_layout.addWidget(self.list_widget)
         
-        # Botones inferiores lista
-        list_btns = QHBoxLayout()
-        add_btn = StyledButton("+ Nuevo Juego", "primary")
+        add_btn = ModernButton("+ NUEVO JUEGO", "success")
         add_btn.clicked.connect(self.add_game)
-        list_btns.addWidget(add_btn)
-        left_layout.addLayout(list_btns)
+        left_layout.addWidget(add_btn)
         
-        main_layout.addWidget(left_panel, 1) # 33% width
+        main_layout.addWidget(left_panel, 1)
+
+        # --- Panel Derecho (Detalles) ---
+        self.right_panel = QWidget()
+        self.right_layout = QVBoxLayout(self.right_panel)
+        self.right_panel.hide()
         
-        # --- RIGHT PANEL (DETAILS) ---
-        right_panel = QFrame()
-        right_panel.setStyleSheet(f"background-color: {THEME['bg_surface']}; border-radius: 12px;")
-        self.right_layout = QVBoxLayout(right_panel)
+        # Info Header
+        self.lbl_title = QLabel()
+        self.lbl_title.setStyleSheet(f"font-size: 32px; font-weight: bold; color: {THEME['text_main']};")
+        self.right_layout.addWidget(self.lbl_title)
         
-        # Placeholder por defecto
-        self.placeholder = QLabel("Selecciona un juego para ver detalles")
-        self.placeholder.setAlignment(Qt.AlignCenter)
-        self.placeholder.setStyleSheet(f"color: {THEME['text_disabled']}; font-size: 16px;")
-        self.right_layout.addWidget(self.placeholder)
+        self.lbl_path = QLabel()
+        self.lbl_path.setStyleSheet(f"font-family: monospace; color: {THEME['text_dim']};")
+        self.right_layout.addWidget(self.lbl_path)
         
-        # Contenedor de detalles (Oculto inicialmente)
-        self.details_container = QWidget()
-        det_layout = QVBoxLayout(self.details_container)
+        # Previews
+        prev_layout = QHBoxLayout()
+        self.prev_icon = AssetDropZone("Icono")
+        self.prev_logo = AssetDropZone("Logo")
+        self.prev_logo.setFixedSize(200, 100)
+        prev_layout.addWidget(self.prev_icon)
+        prev_layout.addWidget(self.prev_logo)
+        prev_layout.addStretch()
+        self.right_layout.addLayout(prev_layout)
         
-        # Título del juego
-        self.title_lbl = QLabel("")
-        self.title_lbl.setStyleSheet(f"font-size: 28px; font-weight: bold; color: {THEME['accent']}; margin-bottom: 10px;")
-        det_layout.addWidget(self.title_lbl)
+        self.right_layout.addStretch()
         
-        # Info Grid
-        info_widget = QWidget()
-        info_grid = QVBoxLayout(info_widget)
-        self.info_lbls = QLabel("")
-        self.info_lbls.setStyleSheet(f"color: {THEME['text_secondary']}; font-size: 14px; line-height: 1.6;")
-        info_grid.addWidget(self.info_lbls)
-        det_layout.addWidget(info_widget)
-        
-        # Preview Imagen
-        self.preview_img = QLabel()
-        self.preview_img.setAlignment(Qt.AlignCenter)
-        self.preview_img.setFixedHeight(200)
-        self.preview_img.setStyleSheet(f"border: 2px solid {THEME['border']}; border-radius: 8px; background: {THEME['bg_main']};")
-        det_layout.addWidget(self.preview_img)
-        
-        det_layout.addStretch()
-        
-        # Botones de Acción
-        actions_layout = QHBoxLayout()
-        
-        self.test_btn = StyledButton("▶ Probar Script", "success")
-        self.test_btn.clicked.connect(self.test_game_script)
-        
-        edit_btn = StyledButton("✏ Editar", "secondary")
+        # Botones Acción
+        act_layout = QHBoxLayout()
+        test_btn = ModernButton("▶ Probar", "primary")
+        test_btn.clicked.connect(self.test_game)
+        edit_btn = ModernButton("✎ Editar", "secondary")
         edit_btn.clicked.connect(self.edit_game)
+        del_btn = ModernButton("🗑 Eliminar", "danger")
+        del_btn.clicked.connect(self.del_game)
         
-        del_btn = StyledButton("🗑 Eliminar", "danger")
-        del_btn.clicked.connect(self.delete_game)
+        act_layout.addWidget(test_btn)
+        act_layout.addWidget(edit_btn)
+        act_layout.addWidget(del_btn)
+        self.right_layout.addLayout(act_layout)
         
-        actions_layout.addWidget(self.test_btn)
-        actions_layout.addWidget(edit_btn)
-        actions_layout.addWidget(del_btn)
+        main_layout.addWidget(self.right_panel, 2)
         
-        det_layout.addLayout(actions_layout)
-        
-        self.right_layout.addWidget(self.details_container)
-        self.details_container.hide()
-        
-        main_layout.addWidget(right_panel, 2) # 66% width
+        # Mensaje Bienvenida
+        self.msg_label = QLabel("Selecciona o crea un juego")
+        self.msg_label.setAlignment(Qt.AlignCenter)
+        self.msg_label.setStyleSheet(f"color: {THEME['text_dim']}; font-size: 18px;")
+        main_layout.addWidget(self.msg_label, 2)
 
-        # Status Bar
-        self.statusBar().showMessage("Listo. Sistema compatible con Launcher v1.0")
-        self.statusBar().setStyleSheet(f"color: {THEME['text_disabled']};")
-
-    def refresh_list(self):
-        self.game_list.clear()
-        games = self.manager.load_games()
+    def refresh(self):
+        self.list_widget.clear()
+        games = self.mgr.load()
         for g in games:
-            self.game_list.addItem(g.nombre)
-        self.details_container.hide()
-        self.placeholder.show()
+            self.list_widget.addItem(g.nombre)
+        
+        if self.right_panel.isVisible():
+            self.right_panel.hide()
+            self.msg_label.show()
 
-    def on_selection_change(self, idx):
+    def on_select(self, idx):
         if idx < 0: return
+        self.msg_label.hide()
+        self.right_panel.show()
         
-        game = self.manager.games[idx]
-        self.placeholder.hide()
-        self.details_container.show()
-        
-        self.title_lbl.setText(game.nombre.upper())
-        
-        # Validar paths para mostrar status
-        ok, errors = game.is_valid_for_launcher()
-        status_icon = "✅ Compatible" if ok else "⚠️ Configuración Inválida"
-        status_color = THEME['success'] if ok else THEME['warning']
-        
-        info_text = f"""
-        <b>ESTADO:</b> <span style="color:{status_color}">{status_icon}</span><br>
-        <b>TIPO:</b> {game.tipo}<br>
-        <b>EJECUTABLE:</b> {game.ruta_ejecutable}<br>
-        <b>ASSETS:</b> {game.icon} | {game.logo}
-        """
-        self.info_lbls.setText(info_text)
-        
-        # Cargar preview (Logo preferiblemente)
-        logo_path = BASE_DIR / game.logo
-        if logo_path.exists():
-            pix = QPixmap(str(logo_path))
-            self.preview_img.setPixmap(pix.scaled(self.preview_img.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        else:
-            self.preview_img.setText("Sin Logo")
+        game = self.mgr.games[idx]
+        self.lbl_title.setText(game.nombre)
+        self.lbl_path.setText(f"CMD: {game.ruta_ejecutable}")
+        self.prev_icon.load_path(game.icon)
+        self.prev_logo.load_path(game.logo)
 
     def add_game(self):
-        dlg = GameFormDialog(self, self.manager)
-        if dlg.exec():
-            self.manager.games.append(dlg.game_result)
-            if self.manager.save_games():
-                self.refresh_list()
-                self.statusBar().showMessage(f"Juego '{dlg.game_result.nombre}' agregado.")
+        d = GameDialog(self, self.mgr)
+        if d.exec():
+            self.mgr.games.append(d.result_game)
+            self.mgr.save()
+            self.refresh()
 
     def edit_game(self):
-        idx = self.game_list.currentRow()
+        idx = self.list_widget.currentRow()
         if idx < 0: return
         
-        original_game = self.manager.games[idx]
-        dlg = GameFormDialog(self, self.manager, original_game)
-        if dlg.exec():
-            self.manager.games[idx] = dlg.game_result
-            if self.manager.save_games():
-                self.refresh_list()
-                self.game_list.setCurrentRow(idx)
-                self.statusBar().showMessage(f"Juego actualizado.")
+        g = self.mgr.games[idx]
+        d = GameDialog(self, self.mgr, g)
+        if d.exec():
+            self.mgr.games[idx] = d.result_game
+            self.mgr.save()
+            self.refresh()
+            self.list_widget.setCurrentRow(idx)
 
-    def delete_game(self):
-        idx = self.game_list.currentRow()
+    def del_game(self):
+        idx = self.list_widget.currentRow()
         if idx < 0: return
         
-        game = self.manager.games[idx]
-        confirm = QMessageBox.question(
-            self, "Confirmar Eliminación",
-            f"¿Estás seguro de eliminar '{game.nombre}'?\n\nEsto borrará la entrada del JSON y sus carpetas de assets/games.",
-            QMessageBox.Yes | QMessageBox.No
-        )
-        
-        if confirm == QMessageBox.Yes:
-            deleted_files, errors = self.manager.delete_game_assets(game)
-            del self.manager.games[idx]
-            self.manager.save_games()
-            self.refresh_list()
-            
-            msg = f"Juego eliminado.\nArchivos borrados: {len(deleted_files)}"
-            if errors:
-                msg += f"\nErrores: {len(errors)}"
-                logger.error(f"Errores al borrar: {errors}")
-                
-            self.statusBar().showMessage(msg)
+        g = self.mgr.games[idx]
+        if QMessageBox.question(self, "Eliminar", f"¿Borrar {g.nombre} y sus archivos?") == QMessageBox.Yes:
+            self.mgr.delete_game_assets(g)
+            del self.mgr.games[idx]
+            self.mgr.save()
+            self.refresh()
 
-    def test_game_script(self):
-        """Simula la ejecución tal como lo haría el Launcher."""
-        idx = self.game_list.currentRow()
-        if idx < 0: return
+    def test_game(self):
+        idx = self.list_widget.currentRow()
+        g = self.mgr.games[idx]
+        script = BASE_DIR / g.ruta_ejecutable
         
-        game = self.manager.games[idx]
-        script_path = BASE_DIR / game.ruta_ejecutable
-        
-        if not script_path.exists():
-            QMessageBox.critical(self, "Error", f"El script no existe:\n{script_path}")
+        if not script.exists():
+            QMessageBox.critical(self, "Error", "El script RUN no existe")
             return
             
         try:
-            # Ejecutar de manera similar a main.py
-            # Usamos subprocess.Popen para no congelar la UI, pero capturamos output
-            logger.info(f"Probando script: {script_path}")
-            subprocess.Popen([str(script_path)], cwd=script_path.parent)
-            self.statusBar().showMessage(f"Ejecutando {game.nombre}...")
+            subprocess.Popen([str(script)], cwd=script.parent)
         except Exception as e:
-            QMessageBox.critical(self, "Fallo Ejecución", f"Error al lanzar subprocess:\n{e}")
+            QMessageBox.critical(self, "Error", f"Fallo al ejecutar: {e}")
 
 # =============================================================================
-# ENTRY POINT
+# MAIN
 # =============================================================================
-
-def main():
-    app = QApplication(sys.argv)
-    
-    # Fuente Global consistente
-    font = QFont("Segoe UI", 10)
-    app.setFont(font)
-    
-    # Paleta oscura básica para integración con entorno Linux
-    palette = QPalette()
-    palette.setColor(QPalette.Window, QColor(THEME["bg_main"]))
-    palette.setColor(QPalette.WindowText, QColor(THEME["text_primary"]))
-    app.setPalette(palette)
-    
-    try:
-        window = MainWindow()
-        window.show()
-        sys.exit(app.exec())
-    except Exception as e:
-        logger.critical(f"Crash no controlado: {e}", exc_info=True)
-        sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+    app = QApplication(sys.argv)
+    app.setFont(QFont("Segoe UI", 10))
+    
+    # Paleta oscura global
+    p = QPalette()
+    p.setColor(QPalette.Window, QColor(THEME['bg_main']))
+    p.setColor(QPalette.WindowText, QColor(THEME['text_main']))
+    app.setPalette(p)
+    
+    w = MainWindow()
+    w.show()
+    sys.exit(app.exec())
