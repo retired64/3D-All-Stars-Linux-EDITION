@@ -690,13 +690,6 @@ def main():
     font = QFont("Segoe UI", 10)
     font.setStyleStrategy(QFont.PreferAntialias)
     app.setFont(font)
-    
-    # Ajustes para monitores High DPI
-    if hasattr(Qt, 'AA_EnableHighDpiScaling'):
-        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-    if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
-        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
-
     window = MainWindow()
     window.show()
     
