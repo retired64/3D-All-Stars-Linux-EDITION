@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 
 """
-3D All Stars Game Editor - (PySide6)
+3D All Stars Game Editor - Ultimate Edition
 ---------------------------------------------------
+Combina gestión robusta de archivos, logging, backups
+y una interfaz moderna de alto rendimiento.
 """
 
 import sys
@@ -12,68 +14,67 @@ import json
 import shutil
 import re
 import stat
+import logging
+import subprocess
+import datetime
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Dict, Optional, Tuple
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QListWidget, QLabel, QDialog, QLineEdit, QComboBox,
-    QFileDialog, QMessageBox, QFrame, QGroupBox, QSplitter, QListWidgetItem
+    QFileDialog, QMessageBox, QFrame, QGroupBox, QScrollArea, QSplitter
 )
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QFont, QPalette, QColor, QIcon
+from PySide6.QtGui import QFont, QPixmap, QIcon, QPalette, QColor, QAction
 
 # =============================================================================
-# THEME CONFIG
+# 1. CONFIGURACIÓN DEL SISTEMA Y LOGGING
 # =============================================================================
 
+# Definir BASE_DIR compatible con scripts y ejecutables congelados (PyInstaller)
+if getattr(sys, 'frozen', False):
+    BASE_DIR = Path(sys.executable).parent.resolve()
+else:
+    BASE_DIR = Path(__file__).parent.resolve()
+
+# Directorios del sistema
+DIRS = {
+    "logs": BASE_DIR / "logs",
+    "backups": BASE_DIR / "backups",
+    "games": BASE_DIR / "games",
+    "assets": BASE_DIR / "assets"
+}
+
+for d in DIRS.values():
+    d.mkdir(parents=True, exist_ok=True)
+
+# Configuración de Logging
+logging.basicConfig(
+    filename=DIRS["logs"] / "editor.log",
+    level=logging.INFO,
+    format="%(asctime)s - [%(levelname)s] - %(message)s",
+    encoding="utf-8"
+)
+logger = logging.getLogger(__name__)
+
+# Tema Visual (Dark Professional)
 THEME = {
-    "bg_main": "#0a0e14",
-    "bg_surface": "#101520",
-    "bg_card": "#151b26",
-    "bg_hover": "#1a2332",
-    
-    "accent": "#00d9ff",
-    "accent_hover": "#00b8d9",
-    "accent_dark": "#008ca8",
-    
-    "text_primary": "#e8eaed",
-    "text_secondary": "#9aa0a6",
-    "text_disabled": "#5f6368",
-    
-    "success": "#34d399",
-    "warning": "#fbbf24",
-    "danger": "#f87171",
-    
-    "border": "#1f2937",
+    "bg_main": "#0f172a",       # Slate 900
+    "bg_surface": "#1e293b",    # Slate 800
+    "bg_card": "#334155",       # Slate 700
+    "accent": "#0ea5e9",        # Sky 500
+    "accent_hover": "#38bdf8",  # Sky 400
+    "text_main": "#f8fafc",     # Slate 50
+    "text_dim": "#94a3b8",      # Slate 400
+    "success": "#22c55e",       # Green 500
+    "danger": "#ef4444",        # Red 500
+    "border": "#475569"         # Slate 600
 }
 
 # =============================================================================
-# EMULATOR TEMPLATES
-# =============================================================================
-
-EMULATOR_TEMPLATES = {
-    "Vacio (Solo estructura)": {
-        "cmd": "# Comando personalizado aquí",
-        "desc": "Estructura vacía"
-    },
-    "Dolphin (GameCube/Wii)": {
-        "cmd": "../../dolphin-emulator/dolphin-emu -b -e \"./game.iso\"",
-        "desc": "ISO/WBFS"
-    },
-    "Azahar/Citra (3DS)": {
-        "cmd": "../../3ds/azahar.AppImage \"./game.3ds\"",
-        "desc": "3DS/CCI"
-    },
-    "Wine (Windows)": {
-        "cmd": "wine \"./game.exe\"",
-        "desc": "Wine EXE"
-    }
-}
-
-# =============================================================================
-# DATA MODEL
+# 2. MODELO DE DATOS Y LÓGICA DE NEGOCIO
 # =============================================================================
 
 @dataclass
@@ -90,624 +91,612 @@ class Game:
 
     @classmethod
     def from_dict(cls, d):
-        return cls(**{k: v for k, v in d.items() if k in cls.__annotations__})
+        # Filtra claves extrañas para evitar errores al cargar JSON antiguos
+        valid_keys = cls.__annotations__.keys()
+        return cls(**{k: v for k, v in d.items() if k in valid_keys})
 
-# =============================================================================
-# STRUCTURE HELPER
-# =============================================================================
-
-class StructureHelper:
+class FileSystemHandler:
+    """Maneja operaciones de archivos, copiado y limpieza."""
 
     @staticmethod
-    def sanitize_name(name: str) -> str:
+    def sanitize(name: str) -> str:
+        """Convierte nombres en cadenas seguras para carpetas."""
         s = name.lower().strip()
         s = re.sub(r'[^\w\s-]', '', s)
         return re.sub(r'[\s_-]+', '_', s)
 
     @staticmethod
-    def create_structure(base: Path, name: str, template: str):
-        safe = StructureHelper.sanitize_name(name)
-        gdir = base / "games" / safe
-        adir = base / "assets" / safe
+    def import_asset(src_path: str, game_name: str, asset_type: str) -> str:
+        """
+        Copia un archivo externo a la carpeta assets/juego del proyecto.
+        Devuelve la ruta relativa.
+        """
+        safe_name = FileSystemHandler.sanitize(game_name)
+        target_dir = DIRS["assets"] / safe_name
+        target_dir.mkdir(parents=True, exist_ok=True)
 
-        gdir.mkdir(parents=True, exist_ok=True)
-        adir.mkdir(parents=True, exist_ok=True)
+        src = Path(src_path)
+        ext = src.suffix.lower()
+        
+        # Nombre estandarizado: icon.png, logo.jpg, sound.wav
+        target_filename = f"{asset_type}{ext}"
+        dest = target_dir / target_filename
+        
+        try:
+            shutil.copy2(src, dest)
+            logger.info(f"Asset importado: {src} -> {dest}")
+            return f"assets/{safe_name}/{target_filename}"
+        except Exception as e:
+            logger.error(f"Error importando asset: {e}")
+            raise e
 
-        run = gdir / "run"
-        t = EMULATOR_TEMPLATES[template]
+    @staticmethod
+    def create_run_script(game_name: str, template_cmd: str, template_desc: str) -> str:
+        """Crea el script de lanzamiento ejecutable."""
+        safe_name = FileSystemHandler.sanitize(game_name)
+        game_dir = DIRS["games"] / safe_name
+        game_dir.mkdir(parents=True, exist_ok=True)
+        
+        run_path = game_dir / "run"
+        
+        content = (
+            "#!/bin/sh\n"
+            "cd \"$(dirname \"$0\")\" || exit 1\n"
+            f"# Generado por Editor - {template_desc}\n"
+            f"{template_cmd}\n"
+        )
+        
+        with open(run_path, "w", encoding="utf-8") as f:
+            f.write(content)
+            
+        # Hacer ejecutable (chmod +x)
+        st = os.stat(run_path)
+        os.chmod(run_path, st.st_mode | stat.S_IEXEC)
+        
+        return f"games/{safe_name}/run"
 
-        with open(run, "w", encoding="utf-8") as f:
-            f.write(
-                "#!/bin/sh\n"
-                "cd \"$(dirname \"$0\")\" || exit 1\n"
-                f"# {t['desc']}\n"
-                f"{t['cmd']}\n"
-            )
-
-        os.chmod(run, os.stat(run).st_mode | stat.S_IEXEC)
-
-        return {
-            "ruta_ejecutable": f"games/{safe}/run",
-            "icon": f"assets/{safe}/icon.png",
-            "logo": f"assets/{safe}/logo.png",
-            "sound": f"assets/{safe}/sound.wav"
-        }
-
-# =============================================================================
-# GAME MANAGER
-# =============================================================================
+    @staticmethod
+    def delete_game_content(game_name: str):
+        """Elimina carpetas de games y assets asociadas."""
+        safe_name = FileSystemHandler.sanitize(game_name)
+        paths_to_remove = [
+            DIRS["games"] / safe_name,
+            DIRS["assets"] / safe_name
+        ]
+        
+        report = []
+        for p in paths_to_remove:
+            if p.exists():
+                try:
+                    shutil.rmtree(p)
+                    report.append(f"Eliminado: {p.name}")
+                except Exception as e:
+                    logger.error(f"No se pudo borrar {p}: {e}")
+        return report
 
 class GameManager:
     def __init__(self, filename="games.json"):
-        self.filename = Path(filename)
-        self.backup = self.filename.with_suffix(".json.backup")
+        self.filepath = BASE_DIR / filename
         self.games: List[Game] = []
+        
+        # Plantillas de emuladores (Mezcla de estáticas y relativas)
+        self.templates = {
+            "Vacio (Solo estructura)": {
+                "cmd": "# Comando personalizado aqui",
+                "desc": "Manual"
+            },
+            "Dolphin (GameCube/Wii)": {
+                "cmd": "../../dolphin-emulator/dolphin-emu -b -e \"./game.iso\"",
+                "desc": "Dolphin Portable"
+            },
+            "Citra/Azahar (3DS)": {
+                "cmd": "../../3ds/azahar.AppImage \"./game.3ds\"",
+                "desc": "AppImage 3DS"
+            },
+            "Wine (Windows EXE)": {
+                "cmd": "wine \"./game.exe\"",
+                "desc": "Wine Wrapper"
+            },
+            "Ryujinx (Switch)": {
+                "cmd": "../../ryujinx/Ryujinx \"./game.nsp\"",
+                "desc": "Ryujinx Portable"
+            }
+        }
 
-    def load_games(self):
-        if not self.filename.exists():
+    def load(self):
+        if not self.filepath.exists():
             return []
-        with open(self.filename, "r", encoding="utf-8") as f:
-            self.games = [Game.from_dict(x) for x in json.load(f)]
+        try:
+            with open(self.filepath, "r", encoding="utf-8") as f:
+                self.games = [Game.from_dict(x) for x in json.load(f)]
+            logger.info(f"Cargados {len(self.games)} juegos.")
+        except Exception as e:
+            logger.error(f"Error cargando JSON: {e}")
         return self.games
 
-    def save_games(self):
-        if self.filename.exists():
-            shutil.copy2(self.filename, self.backup)
-        with open(self.filename, "w", encoding="utf-8") as f:
-            json.dump([g.to_dict() for g in self.games], f, indent=2, ensure_ascii=False)
-        return True
-
-    def validate_game(self, game: Game):
-        base = self.filename.parent
-        if not game.nombre:
-            return False, "Nombre obligatorio"
-        if not (base / game.ruta_ejecutable).exists():
-            return False, "Script no existe (CRÍTICO)"
-        return True, "OK"
-
-    def delete_game_files(self, game: Game) -> bool:
-        """Elimina las carpetas assets y games del juego"""
-        base = self.filename.parent
-        safe_name = StructureHelper.sanitize_name(game.nombre)
+    def save(self):
+        # 1. Crear Backup
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = DIRS["backups"] / f"games_{timestamp}.json"
+        if self.filepath.exists():
+            shutil.copy2(self.filepath, backup_path)
         
-        deleted = []
-        errors = []
-        
-        # Eliminar carpeta de assets
-        assets_path = base / "assets" / safe_name
-        if assets_path.exists():
-            try:
-                shutil.rmtree(assets_path)
-                deleted.append(f"assets/{safe_name}")
-            except Exception as e:
-                errors.append(f"Error en assets: {e}")
-        
-        # Eliminar carpeta de games
-        games_path = base / "games" / safe_name
-        if games_path.exists():
-            try:
-                shutil.rmtree(games_path)
-                deleted.append(f"games/{safe_name}")
-            except Exception as e:
-                errors.append(f"Error en games: {e}")
-        
-        return deleted, errors
+        # 2. Guardar
+        try:
+            with open(self.filepath, "w", encoding="utf-8") as f:
+                json.dump([g.to_dict() for g in self.games], f, indent=2, ensure_ascii=False)
+            logger.info("Base de datos guardada correctamente.")
+            return True
+        except Exception as e:
+            logger.critical(f"Fallo al guardar JSON: {e}")
+            return False
 
 # =============================================================================
-# STYLED WIDGETS
+# 3. COMPONENTES UI
 # =============================================================================
 
 class StyledButton(QPushButton):
-    def __init__(self, text, style_type="primary", parent=None):
+    def __init__(self, text, variant="primary", parent=None):
         super().__init__(text, parent)
-        self.style_type = style_type
+        self.setCursor(Qt.PointingHandCursor)
+        self.variant = variant
         self.apply_style()
-        
+
     def apply_style(self):
-        if self.style_type == "primary":
-            bg = THEME["accent"]
-            bg_hover = THEME["accent_hover"]
-            text_color = "#000000"
-        elif self.style_type == "danger":
-            bg = THEME["danger"]
-            bg_hover = "#dc2626"
-            text_color = "#ffffff"
-        elif self.style_type == "success":
-            bg = THEME["success"]
-            bg_hover = "#10b981"
-            text_color = "#000000"
-        else:  # secondary
-            bg = THEME["bg_card"]
-            bg_hover = THEME["bg_hover"]
-            text_color = THEME["text_primary"]
+        styles = {
+            "primary": (THEME["accent"], "#ffffff"),
+            "secondary": (THEME["bg_card"], THEME["text_main"]),
+            "danger": (THEME["danger"], "#ffffff"),
+            "success": (THEME["success"], "#ffffff")
+        }
+        bg, txt = styles.get(self.variant, styles["secondary"])
         
         self.setStyleSheet(f"""
             QPushButton {{
                 background-color: {bg};
-                color: {text_color};
+                color: {txt};
                 border: none;
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-size: 14px;
-                font-weight: 600;
-                min-height: 20px;
+                border-radius: 6px;
+                padding: 10px 20px;
+                font-weight: bold;
+                font-size: 13px;
             }}
-            QPushButton:hover {{
-                background-color: {bg_hover};
-            }}
-            QPushButton:pressed {{
-                background-color: {THEME["accent_dark"]};
-            }}
+            QPushButton:hover {{ opacity: 0.9; }}
+            QPushButton:pressed {{ background-color: {THEME['bg_surface']}; }}
         """)
 
+class ImagePreview(QLabel):
+    def __init__(self, title):
+        super().__init__()
+        self.setFixedSize(140, 100)
+        self.setAlignment(Qt.AlignCenter)
+        self.setText(title)
+        self.setStyleSheet(f"""
+            QLabel {{
+                background-color: {THEME['bg_main']};
+                border: 2px dashed {THEME['border']};
+                border-radius: 8px;
+                color: {THEME['text_dim']};
+            }}
+        """)
+        self.setScaledContents(True)
+
+    def set_image(self, rel_path):
+        full_path = BASE_DIR / rel_path
+        if full_path.exists() and full_path.is_file():
+            self.setPixmap(QPixmap(str(full_path)))
+            self.setStyleSheet(f"border: 2px solid {THEME['accent']}; border-radius: 8px;")
+        else:
+            self.setText("Sin Imagen")
+            self.setStyleSheet(f"border: 2px dashed {THEME['danger']}; color: {THEME['danger']}; background: {THEME['bg_main']};")
+
 # =============================================================================
-# GAME FORM DIALOG
+# 4. DIÁLOGO DE EDICIÓN
 # =============================================================================
 
 class GameFormDialog(QDialog):
-    def __init__(self, parent, manager, game=None):
+    def __init__(self, parent, manager: GameManager, game: Optional[Game] = None):
         super().__init__(parent)
         self.manager = manager
-        self.base = manager.filename.parent
-        self.result = None
-        self.editing = game
-        
+        self.game_data = game
+        self.result_game = None
         self.setup_ui()
         if game:
-            self.load_game(game)
-    
+            self.load_data()
+
     def setup_ui(self):
-        self.setWindowTitle("Editor de Juego" if not self.editing else "Editar Juego")
-        self.setMinimumSize(800, 700)
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {THEME["bg_main"]};
-            }}
-            QLabel {{
-                color: {THEME["text_primary"]};
-                font-size: 13px;
-            }}
-            QLineEdit, QComboBox {{
-                background-color: {THEME["bg_card"]};
-                color: {THEME["text_primary"]};
-                border: 2px solid {THEME["border"]};
-                border-radius: 6px;
-                padding: 10px;
-                font-size: 13px;
-            }}
-            QLineEdit:focus, QComboBox:focus {{
-                border: 2px solid {THEME["accent"]};
-            }}
-            QGroupBox {{
-                color: {THEME["text_primary"]};
-                font-size: 14px;
-                font-weight: 600;
-                border: 2px solid {THEME["border"]};
-                border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 12px;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 8px;
-            }}
-        """)
-        
+        self.setWindowTitle("Editor de Juego" if not self.game_data else f"Editando: {self.game_data.nombre}")
+        self.resize(700, 600)
+        self.setStyleSheet(f"background-color: {THEME['bg_main']}; color: {THEME['text_main']};")
+
         layout = QVBoxLayout(self)
-        layout.setSpacing(16)
-        layout.setContentsMargins(24, 24, 24, 24)
         
-        # Título
-        title = QLabel("✨ NUEVO JUEGO" if not self.editing else "✏️ EDITAR JUEGO")
-        title.setStyleSheet(f"font-size: 24px; font-weight: 700; color: {THEME['accent']};")
-        layout.addWidget(title)
+        # Scroll Area para pantallas pequeñas
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("background: transparent; border: none;")
+        content = QWidget()
+        form_layout = QVBoxLayout(content)
+        form_layout.setSpacing(15)
+
+        # 1. Datos Básicos
+        gb_info = QGroupBox("📝 Información Básica")
+        gb_info.setStyleSheet(f"QGroupBox {{ border: 1px solid {THEME['border']}; margin-top: 10px; padding: 15px; font-weight: bold; color: {THEME['accent']}; }}")
+        l_info = QVBoxLayout()
         
-        # Nombre
-        layout.addWidget(QLabel("Nombre del Juego"))
-        self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("Ej: Super Mario Galaxy")
-        layout.addWidget(self.name_input)
+        self.inp_name = QLineEdit()
+        self.inp_name.setPlaceholderText("Nombre del Juego (Ej: Super Mario Sunshine)")
+        self.inp_name.setStyleSheet(f"padding: 8px; background: {THEME['bg_card']}; border: 1px solid {THEME['border']}; color: white;")
         
-        # Tipo
-        layout.addWidget(QLabel("Tipo de Ejecutable"))
-        self.type_combo = QComboBox()
-        self.type_combo.addItems(["binario", "appimage", "script"])
-        layout.addWidget(self.type_combo)
+        self.cmb_type = QComboBox()
+        self.cmb_type.addItems(["binario", "script", "appimage"])
+        self.cmb_type.setStyleSheet(self.inp_name.styleSheet())
+
+        l_info.addWidget(QLabel("Nombre:"))
+        l_info.addWidget(self.inp_name)
+        l_info.addWidget(QLabel("Tipo de Ejecución:"))
+        l_info.addWidget(self.cmb_type)
+        gb_info.setLayout(l_info)
+        form_layout.addWidget(gb_info)
+
+        # 2. Configuración Automática
+        gb_auto = QGroupBox("⚡ Auto-Configuración")
+        gb_auto.setStyleSheet(gb_info.styleSheet())
+        l_auto = QHBoxLayout()
         
-        # Auto Config
-        auto_group = QGroupBox("🚀 Auto Configuración")
-        auto_layout = QHBoxLayout()
-        self.template_combo = QComboBox()
-        self.template_combo.addItems(list(EMULATOR_TEMPLATES.keys()))
-        auto_layout.addWidget(self.template_combo, 1)
+        self.cmb_template = QComboBox()
+        self.cmb_template.addItems(list(self.manager.templates.keys()))
+        self.cmb_template.setStyleSheet(self.inp_name.styleSheet())
         
-        create_btn = StyledButton("Crear Estructura", "success")
-        create_btn.clicked.connect(self.create_structure)
-        auto_layout.addWidget(create_btn)
+        btn_gen = StyledButton("Generar Estructura", "success")
+        btn_gen.clicked.connect(self.generate_structure)
         
-        auto_group.setLayout(auto_layout)
-        layout.addWidget(auto_group)
+        l_auto.addWidget(self.cmb_template, 1)
+        l_auto.addWidget(btn_gen)
+        gb_auto.setLayout(l_auto)
+        form_layout.addWidget(gb_auto)
+
+        # 3. Archivos y Assets
+        gb_files = QGroupBox("📁 Archivos y Assets")
+        gb_files.setStyleSheet(gb_info.styleSheet())
+        l_files = QVBoxLayout()
         
-        # Archivos
-        files_group = QGroupBox("📁 Archivos")
-        files_layout = QVBoxLayout()
-        
-        self.file_inputs = {}
-        file_configs = [
-            ("ruta_ejecutable", "Script Ejecutable", "file"),
+        self.inputs = {}
+        # Clave, Etiqueta, Tipo
+        fields = [
+            ("ruta_ejecutable", "Script de Arranque (run)", "file"),
             ("icon", "Icono (PNG/JPG)", "image"),
             ("logo", "Logo (PNG/JPG)", "image"),
-            ("sound", "Sonido (WAV/MP3)", "audio"),
+            ("sound", "Sonido (WAV/MP3)", "audio")
         ]
-        
-        for key, label, file_type in file_configs:
+
+        for key, label, ftype in fields:
             row = QHBoxLayout()
-            row.addWidget(QLabel(label), 0)
+            inp = QLineEdit()
+            inp.setPlaceholderText(f"Ruta relativa ({label})")
+            inp.setStyleSheet(self.inp_name.styleSheet())
+            self.inputs[key] = inp
             
-            input_field = QLineEdit()
-            input_field.setPlaceholderText(f"Ruta del {label.lower()}")
-            self.file_inputs[key] = input_field
-            row.addWidget(input_field, 1)
+            btn = QPushButton("📂")
+            btn.setFixedSize(40, 35)
+            btn.setStyleSheet(f"background: {THEME['bg_card']}; color: {THEME['accent']}; border: 1px solid {THEME['accent']}; border-radius: 4px;")
+            btn.clicked.connect(lambda _, k=key, t=ftype: self.browse_and_import(k, t))
             
-            browse_btn = QPushButton("📂 Buscar")
-            browse_btn.setFixedWidth(100)
-            browse_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {THEME["bg_card"]};
-                    color: {THEME["accent"]};
-                    border: 2px solid {THEME["accent"]};
-                    border-radius: 6px;
-                    padding: 8px;
-                    font-weight: 600;
-                }}
-                QPushButton:hover {{
-                    background-color: {THEME["accent"]};
-                    color: #000000;
-                }}
-            """)
-            browse_btn.clicked.connect(lambda checked, k=key, ft=file_type: self.browse_file(k, ft))
-            row.addWidget(browse_btn)
+            row.addWidget(QLabel(label))
+            row.addWidget(inp, 1)
+            row.addWidget(btn)
+            l_files.addLayout(row)
             
-            files_layout.addLayout(row)
+        gb_files.setLayout(l_files)
+        form_layout.addWidget(gb_files)
+
+        scroll.setWidget(content)
+        layout.addWidget(scroll)
+
+        # Botones Finales
+        bbox = QHBoxLayout()
+        btn_cancel = StyledButton("Cancelar", "danger")
+        btn_cancel.clicked.connect(self.reject)
+        btn_save = StyledButton("Guardar Cambios", "primary")
+        btn_save.clicked.connect(self.save_game)
         
-        files_group.setLayout(files_layout)
-        layout.addWidget(files_group)
-        
-        # Botones
-        layout.addStretch()
-        buttons = QHBoxLayout()
-        buttons.addStretch()
-        
-        save_btn = StyledButton("💾 GUARDAR", "primary")
-        save_btn.clicked.connect(self.save_game)
-        buttons.addWidget(save_btn)
-        
-        cancel_btn = StyledButton("❌ CANCELAR", "secondary")
-        cancel_btn.clicked.connect(self.reject)
-        buttons.addWidget(cancel_btn)
-        
-        layout.addLayout(buttons)
-    
-    def create_structure(self):
-        name = self.name_input.text()
+        bbox.addStretch()
+        bbox.addWidget(btn_cancel)
+        bbox.addWidget(btn_save)
+        layout.addLayout(bbox)
+
+    def load_data(self):
+        self.inp_name.setText(self.game_data.nombre)
+        self.cmb_type.setCurrentText(self.game_data.tipo)
+        for key, inp in self.inputs.items():
+            inp.setText(getattr(self.game_data, key))
+
+    def generate_structure(self):
+        name = self.inp_name.text()
         if not name:
-            QMessageBox.warning(self, "Advertencia", "Primero escribe el nombre del juego")
+            QMessageBox.warning(self, "Error", "Escribe un nombre primero.")
             return
-        
-        paths = StructureHelper.create_structure(
-            self.base, 
-            name, 
-            self.template_combo.currentText()
-        )
-        
-        for key, path in paths.items():
-            self.file_inputs[key].setText(path)
-        
-        QMessageBox.information(self, "Éxito", "✅ Estructura de carpetas creada correctamente")
-    
-    def browse_file(self, field_name, file_type):
-        if file_type == "image":
-            file_path, _ = QFileDialog.getOpenFileName(
-                self,
-                f"Seleccionar {field_name}",
-                "",
-                "Imágenes (*.png *.jpg *.jpeg *.gif *.bmp);;Todos los archivos (*.*)"
-            )
-            if file_path:
-                self.copy_image(file_path, field_name)
-        elif file_type == "audio":
-            file_path, _ = QFileDialog.getOpenFileName(
-                self,
-                "Seleccionar sonido",
-                "",
-                "Audio (*.wav *.mp3 *.ogg);;Todos los archivos (*.*)"
-            )
-            if file_path:
-                self.file_inputs[field_name].setText(file_path)
-        else:  # file
-            file_path, _ = QFileDialog.getOpenFileName(
-                self,
-                "Seleccionar ejecutable",
-                "",
-                "Todos los archivos (*.*)"
-            )
-            if file_path:
-                try:
-                    rel_path = Path(file_path).relative_to(self.base)
-                    self.file_inputs[field_name].setText(str(rel_path))
-                except ValueError:
-                    self.file_inputs[field_name].setText(file_path)
-    
-    def copy_image(self, src_path, field_name):
-        game_name = self.name_input.text()
-        if not game_name:
-            QMessageBox.warning(self, "Advertencia", "Primero escribe el nombre del juego")
-            return
-        
-        safe_name = StructureHelper.sanitize_name(game_name)
-        assets_dir = self.base / "assets" / safe_name
-        assets_dir.mkdir(parents=True, exist_ok=True)
-        
-        src = Path(src_path)
-        ext = src.suffix
-        dest = assets_dir / f"{field_name}{ext}"
-        
+
+        tmpl_key = self.cmb_template.currentText()
+        tmpl = self.manager.templates[tmpl_key]
+
         try:
-            shutil.copy2(src, dest)
-            rel_path = f"assets/{safe_name}/{field_name}{ext}"
-            self.file_inputs[field_name].setText(rel_path)
-            QMessageBox.information(self, "Éxito", f"✅ Imagen copiada a:\n{rel_path}")
+            # 1. Crear Script
+            run_path = FileSystemHandler.create_run_script(name, tmpl["cmd"], tmpl["desc"])
+            self.inputs["ruta_ejecutable"].setText(run_path)
+            
+            # 2. Pre-llenar rutas de assets (aunque no existan aún, define dónde irán)
+            safe = FileSystemHandler.sanitize(name)
+            self.inputs["icon"].setText(f"assets/{safe}/icon.png")
+            self.inputs["logo"].setText(f"assets/{safe}/logo.png")
+            self.inputs["sound"].setText(f"assets/{safe}/sound.wav")
+            
+            QMessageBox.information(self, "Éxito", f"✅ Estructura creada en games/{safe}")
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo copiar la imagen:\n{str(e)}")
-    
-    def load_game(self, game):
-        self.name_input.setText(game.nombre)
-        self.type_combo.setCurrentText(game.tipo)
-        self.file_inputs["ruta_ejecutable"].setText(game.ruta_ejecutable)
-        self.file_inputs["icon"].setText(game.icon)
-        self.file_inputs["logo"].setText(game.logo)
-        self.file_inputs["sound"].setText(game.sound)
-    
-    def save_game(self):
-        game = Game(
-            self.name_input.text(),
-            self.type_combo.currentText(),
-            self.file_inputs["ruta_ejecutable"].text(),
-            self.file_inputs["icon"].text(),
-            self.file_inputs["logo"].text(),
-            self.file_inputs["sound"].text()
-        )
-        
-        ok, msg = self.manager.validate_game(game)
-        if not ok:
-            QMessageBox.critical(self, "Error de Validación", msg)
+            QMessageBox.critical(self, "Error", str(e))
+
+    def browse_and_import(self, key, ftype):
+        name = self.inp_name.text()
+        if not name and ftype != "file":
+            QMessageBox.warning(self, "Atención", "Escribe el nombre del juego antes de importar assets.")
             return
+
+        filters = {
+            "image": "Imágenes (*.png *.jpg *.jpeg *.bmp)",
+            "audio": "Audio (*.wav *.mp3 *.ogg)",
+            "file": "Todos (*.*)"
+        }
         
-        self.result = game
+        path, _ = QFileDialog.getOpenFileName(self, f"Seleccionar {key}", str(BASE_DIR), filters.get(ftype, "Todos (*.*)"))
+        
+        if path:
+            # Si es asset (imagen/audio), lo importamos a la carpeta assets/juego
+            if ftype in ["image", "audio"]:
+                try:
+                    rel_path = FileSystemHandler.import_asset(path, name, key)
+                    self.inputs[key].setText(rel_path)
+                    QMessageBox.information(self, "Importado", f"Archivo copiado a:\n{rel_path}")
+                except Exception as e:
+                    QMessageBox.critical(self, "Error de Importación", str(e))
+            else:
+                # Si es un script o ejecutable, intentamos usar ruta relativa
+                try:
+                    p = Path(path)
+                    if BASE_DIR in p.parents:
+                        self.inputs[key].setText(str(p.relative_to(BASE_DIR)))
+                    else:
+                        self.inputs[key].setText(path)
+                except:
+                    self.inputs[key].setText(path)
+
+    def save_game(self):
+        # Validación básica
+        if not self.inp_name.text():
+            QMessageBox.warning(self, "Error", "El nombre es obligatorio")
+            return
+            
+        self.result_game = Game(
+            nombre=self.inp_name.text(),
+            tipo=self.cmb_type.currentText(),
+            ruta_ejecutable=self.inputs["ruta_ejecutable"].text(),
+            icon=self.inputs["icon"].text(),
+            logo=self.inputs["logo"].text(),
+            sound=self.inputs["sound"].text()
+        )
         self.accept()
 
 # =============================================================================
-# MAIN WINDOW
+# 5. VENTANA PRINCIPAL
 # =============================================================================
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.manager = GameManager()
-        self.setup_ui()
-        self.load_games()
-    
-    def setup_ui(self):
-        self.setWindowTitle("3D All Stars Game Editor")
-        self.setMinimumSize(1100, 750)
+        self.init_ui()
+        self.refresh_list()
+
+    def init_ui(self):
+        self.setWindowTitle("3D All Stars - Ultimate Editor")
+        self.setMinimumSize(1000, 700)
         
-        # Estilo global
-        self.setStyleSheet(f"""
-            QMainWindow {{
-                background-color: {THEME["bg_main"]};
-            }}
-            QLabel {{
-                color: {THEME["text_primary"]};
-            }}
-            QListWidget {{
-                background-color: {THEME["bg_surface"]};
-                color: {THEME["text_primary"]};
-                border: 2px solid {THEME["border"]};
-                border-radius: 12px;
-                padding: 8px;
-                font-size: 15px;
-            }}
-            QListWidget::item {{
-                padding: 14px;
-                border-radius: 8px;
-                margin: 4px;
-            }}
-            QListWidget::item:selected {{
-                background-color: {THEME["accent"]};
-                color: #000000;
-                font-weight: 600;
-            }}
-            QListWidget::item:hover {{
-                background-color: {THEME["bg_hover"]};
-            }}
-            QFrame {{
-                background-color: {THEME["bg_surface"]};
-                border-radius: 12px;
-            }}
-        """)
-        
-        # Widget central
+        # Widget Central
         central = QWidget()
         self.setCentralWidget(central)
+        central.setStyleSheet(f"background-color: {THEME['bg_main']};")
+        
         main_layout = QHBoxLayout(central)
-        main_layout.setSpacing(20)
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        
-        # Panel izquierdo - Lista
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        # --- PANEL IZQUIERDO (Lista) ---
         left_panel = QFrame()
+        left_panel.setFixedWidth(300)
+        left_panel.setStyleSheet(f"background: {THEME['bg_surface']}; border-right: 1px solid {THEME['border']};")
         left_layout = QVBoxLayout(left_panel)
-        left_layout.setContentsMargins(16, 16, 16, 16)
         
-        title = QLabel("🎮 BIBLIOTECA DE JUEGOS")
-        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {THEME['accent']};")
-        left_layout.addWidget(title)
+        lbl_title = QLabel("🎮 LIBRERÍA")
+        lbl_title.setStyleSheet(f"color: {THEME['accent']}; font-weight: 900; font-size: 18px; padding: 10px;")
+        left_layout.addWidget(lbl_title)
         
-        self.game_list = QListWidget()
-        self.game_list.currentRowChanged.connect(self.on_game_selected)
-        left_layout.addWidget(self.game_list)
-        
-        main_layout.addWidget(left_panel, 2)
-        
-        # Panel derecho - Controles e info
-        right_panel = QWidget()
-        right_layout = QVBoxLayout(right_panel)
-        right_layout.setSpacing(12)
-        
-        # Botones de acción
-        add_btn = StyledButton("➕ NUEVO JUEGO", "primary")
-        add_btn.clicked.connect(self.add_game)
-        right_layout.addWidget(add_btn)
-        
-        edit_btn = StyledButton("✏️ EDITAR", "secondary")
-        edit_btn.clicked.connect(self.edit_game)
-        right_layout.addWidget(edit_btn)
-        
-        delete_btn = StyledButton("🗑️ ELIMINAR", "danger")
-        delete_btn.clicked.connect(self.delete_game)
-        right_layout.addWidget(delete_btn)
-        
-        # Separador
-        separator = QFrame()
-        separator.setFrameShape(QFrame.HLine)
-        separator.setStyleSheet(f"background-color: {THEME['border']};")
-        right_layout.addWidget(separator)
-        
-        save_btn = StyledButton("💾 GUARDAR TODO", "success")
-        save_btn.clicked.connect(self.save_all)
-        right_layout.addWidget(save_btn)
-        
-        # Panel de información
-        info_frame = QFrame()
-        info_layout = QVBoxLayout(info_frame)
-        info_layout.setContentsMargins(16, 16, 16, 16)
-        
-        info_title = QLabel("ℹ️ INFORMACIÓN")
-        info_title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {THEME['accent']};")
-        info_layout.addWidget(info_title)
-        
-        self.info_label = QLabel("Selecciona un juego para ver su información")
-        self.info_label.setWordWrap(True)
-        self.info_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        self.info_label.setStyleSheet(f"""
-            color: {THEME['text_secondary']};
-            font-size: 13px;
-            line-height: 1.6;
+        self.list_widget = QListWidget()
+        self.list_widget.setStyleSheet(f"""
+            QListWidget {{ border: none; background: transparent; color: {THEME['text_main']}; outline: none; }}
+            QListWidget::item {{ padding: 12px; margin: 2px 8px; border-radius: 6px; }}
+            QListWidget::item:selected {{ background: {THEME['accent']}; color: white; }}
+            QListWidget::item:hover {{ background: {THEME['bg_card']}; }}
         """)
-        info_layout.addWidget(self.info_label)
-        info_layout.addStretch()
+        self.list_widget.currentRowChanged.connect(self.on_game_selected)
+        left_layout.addWidget(self.list_widget)
         
-        right_layout.addWidget(info_frame, 1)
+        btn_add = StyledButton("➕ Nuevo Juego", "success")
+        btn_add.clicked.connect(self.add_game)
+        left_layout.addWidget(btn_add)
         
-        main_layout.addWidget(right_panel, 1)
-    
-    def load_games(self):
-        self.game_list.clear()
-        self.manager.load_games()
-        for game in self.manager.games:
-            self.game_list.addItem(game.nombre)
-    
-    def on_game_selected(self, index):
-        if index < 0 or index >= len(self.manager.games):
-            return
+        main_layout.addWidget(left_panel)
+
+        # --- PANEL DERECHO (Detalles) ---
+        self.right_panel = QWidget()
+        self.right_panel.hide()
+        right_layout = QVBoxLayout(self.right_panel)
+        right_layout.setContentsMargins(40, 40, 40, 40)
         
-        game = self.manager.games[index]
-        info = f"""
-<b style="color: {THEME['accent']};">NOMBRE:</b> {game.nombre}<br><br>
-<b style="color: {THEME['accent']};">TIPO:</b> {game.tipo}<br><br>
-<b style="color: {THEME['accent']};">EJECUTABLE:</b><br>{game.ruta_ejecutable}<br><br>
-<b style="color: {THEME['accent']};">ICONO:</b><br>{game.icon}<br><br>
-<b style="color: {THEME['accent']};">LOGO:</b><br>{game.logo}<br><br>
-<b style="color: {THEME['accent']};">SONIDO:</b><br>{game.sound}
-        """
-        self.info_label.setText(info)
-    
+        # Encabezado
+        self.lbl_game_title = QLabel("")
+        self.lbl_game_title.setStyleSheet(f"font-size: 36px; font-weight: bold; color: {THEME['text_main']};")
+        right_layout.addWidget(self.lbl_game_title)
+        
+        self.lbl_game_path = QLabel("")
+        self.lbl_game_path.setStyleSheet(f"font-family: Consolas, monospace; color: {THEME['text_dim']}; background: {THEME['bg_card']}; padding: 5px; border-radius: 4px;")
+        right_layout.addWidget(self.lbl_game_path)
+        
+        right_layout.addSpacing(30)
+        
+        # Previsualizaciones
+        prev_layout = QHBoxLayout()
+        self.prev_icon = ImagePreview("Icono")
+        self.prev_logo = ImagePreview("Logo")
+        prev_layout.addWidget(self.prev_icon)
+        prev_layout.addWidget(self.prev_logo)
+        prev_layout.addStretch()
+        right_layout.addLayout(prev_layout)
+        
+        right_layout.addStretch()
+        
+        # Botones de Acción
+        actions_layout = QHBoxLayout()
+        
+        btn_test = StyledButton("▶ PROBAR", "success")
+        btn_test.clicked.connect(self.test_game)
+        
+        btn_edit = StyledButton("✏️ EDITAR", "primary")
+        btn_edit.clicked.connect(self.edit_game)
+        
+        btn_del = StyledButton("🗑️ ELIMINAR", "danger")
+        btn_del.clicked.connect(self.delete_game)
+        
+        actions_layout.addWidget(btn_test)
+        actions_layout.addWidget(btn_edit)
+        actions_layout.addStretch()
+        actions_layout.addWidget(btn_del)
+        
+        right_layout.addLayout(actions_layout)
+        
+        main_layout.addWidget(self.right_panel)
+        
+        # Label de "Bienvenida" (cuando no hay selección)
+        self.lbl_welcome = QLabel("Selecciona un juego de la lista\no crea uno nuevo.")
+        self.lbl_welcome.setAlignment(Qt.AlignCenter)
+        self.lbl_welcome.setStyleSheet(f"font-size: 20px; color: {THEME['text_dim']};")
+        main_layout.addWidget(self.lbl_welcome)
+
+    def refresh_list(self):
+        self.list_widget.clear()
+        self.manager.load()
+        for g in self.manager.games:
+            self.list_widget.addItem(g.nombre)
+        
+        # Reset view
+        self.right_panel.hide()
+        self.lbl_welcome.show()
+
+    def on_game_selected(self, idx):
+        if idx < 0: return
+        
+        self.lbl_welcome.hide()
+        self.right_panel.show()
+        
+        game = self.manager.games[idx]
+        self.lbl_game_title.setText(game.nombre)
+        self.lbl_game_path.setText(f"$ {game.ruta_ejecutable}")
+        
+        self.prev_icon.set_image(game.icon)
+        self.prev_logo.set_image(game.logo)
+
     def add_game(self):
-        dialog = GameFormDialog(self, self.manager)
-        if dialog.exec() and dialog.result:
-            self.manager.games.append(dialog.result)
-            self.manager.save_games()
-            self.load_games()
-            QMessageBox.information(self, "Éxito", f"✅ Juego '{dialog.result.nombre}' agregado correctamente")
-    
+        dlg = GameFormDialog(self, self.manager)
+        if dlg.exec() and dlg.result_game:
+            self.manager.games.append(dlg.result_game)
+            self.manager.save()
+            self.refresh_list()
+            # Seleccionar el nuevo
+            self.list_widget.setCurrentRow(len(self.manager.games) - 1)
+
     def edit_game(self):
-        index = self.game_list.currentRow()
-        if index < 0:
-            QMessageBox.warning(self, "Advertencia", "Selecciona un juego para editar")
-            return
+        idx = self.list_widget.currentRow()
+        if idx < 0: return
         
-        dialog = GameFormDialog(self, self.manager, self.manager.games[index])
-        if dialog.exec() and dialog.result:
-            self.manager.games[index] = dialog.result
-            self.manager.save_games()
-            self.load_games()
-            QMessageBox.information(self, "Éxito", f"✅ Juego '{dialog.result.nombre}' actualizado correctamente")
-    
+        current_game = self.manager.games[idx]
+        dlg = GameFormDialog(self, self.manager, current_game)
+        
+        if dlg.exec() and dlg.result_game:
+            self.manager.games[idx] = dlg.result_game
+            self.manager.save()
+            self.refresh_list()
+            self.list_widget.setCurrentRow(idx)
+
     def delete_game(self):
-        index = self.game_list.currentRow()
-        if index < 0:
-            QMessageBox.warning(self, "Advertencia", "Selecciona un juego para eliminar")
-            return
+        idx = self.list_widget.currentRow()
+        if idx < 0: return
         
-        game = self.manager.games[index]
+        game = self.manager.games[idx]
         
-        # Diálogo de confirmación personalizado
         msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Warning)
         msg.setWindowTitle("Confirmar Eliminación")
-        msg.setText(f"¿Eliminar '{game.nombre}'?")
-        msg.setInformativeText("Esto eliminará:\n• Entrada en games.json\n• Carpeta games/juego\n• Carpeta assets/juego\n\n⚠️ Esta acción NO se puede deshacer")
+        msg.setText(f"¿Estás seguro de eliminar '{game.nombre}'?")
+        msg.setInformativeText("Esto borrará la entrada del JSON y las carpetas de assets/games asociadas.\nEsta acción es irreversible.")
+        msg.setIcon(QMessageBox.Warning)
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         msg.setDefaultButton(QMessageBox.No)
         
-        yes_btn = msg.button(QMessageBox.Yes)
-        yes_btn.setText("Sí, eliminar todo")
-        no_btn = msg.button(QMessageBox.No)
-        no_btn.setText("Cancelar")
-        
         if msg.exec() == QMessageBox.Yes:
-            # Eliminar archivos
-            deleted, errors = self.manager.delete_game_files(game)
+            # Eliminar archivos físicos
+            report = FileSystemHandler.delete_game_content(game.nombre)
             
-            # Eliminar del JSON
-            del self.manager.games[index]
-            self.manager.save_games()
-            self.load_games()
+            # Eliminar de la lista
+            del self.manager.games[idx]
+            self.manager.save()
             
-            # Mostrar resultado
-            result_msg = f"✅ Juego '{game.nombre}' eliminado correctamente\n\n"
-            if deleted:
-                result_msg += "Carpetas eliminadas:\n• " + "\n• ".join(deleted)
-            if errors:
-                result_msg += "\n\n⚠️ Errores:\n• " + "\n• ".join(errors)
+            # Feedback
+            info = "\n".join(report) if report else "No se encontraron archivos físicos."
+            QMessageBox.information(self, "Eliminado", f"Juego eliminado correctamente.\n\n{info}")
             
-            QMessageBox.information(self, "Eliminación Completa", result_msg)
-    
-    def save_all(self):
-        self.manager.save_games()
-        QMessageBox.information(self, "Guardado", "✅ Todos los cambios guardados en games.json")
+            self.refresh_list()
+
+    def test_game(self):
+        idx = self.list_widget.currentRow()
+        game = self.manager.games[idx]
+        
+        script_path = BASE_DIR / game.ruta_ejecutable
+        
+        if not script_path.exists():
+            QMessageBox.critical(self, "Error", f"No se encuentra el script:\n{script_path}")
+            return
+            
+        try:
+            # Ejecutar el script manteniendo el directorio de trabajo correcto
+            subprocess.Popen([str(script_path)], cwd=script_path.parent)
+        except Exception as e:
+            QMessageBox.critical(self, "Error de Ejecución", f"Fallo al lanzar:\n{e}")
 
 # =============================================================================
-# MAIN
+# ENTRY POINT
 # =============================================================================
 
 def main():
     app = QApplication(sys.argv)
     
-    # Configurar fuente global
+    # Fuente global moderna
     font = QFont("Segoe UI", 10)
+    font.setStyleStrategy(QFont.PreferAntialias)
     app.setFont(font)
     
+    # Ajustes para monitores High DPI
+    if hasattr(Qt, 'AA_EnableHighDpiScaling'):
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
+        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+
     window = MainWindow()
     window.show()
     
