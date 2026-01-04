@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D All Stars Linux Edition - Gaming Launcher</title>
+    <meta name="description" content="Console-grade gaming launcher for Linux. Pre-configured emulators, gamepad-first navigation, premium experience.">
+    
+    <!-- Critical fonts preload -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ==========================================
+           DESIGN SYSTEM FOUNDATION
+        ========================================== */
+        :root {
+            /* Color Palette - Dark Premium Gaming */
+            --black: #000000;
+            --gray-950: #0a0a0a;
+            --gray-900: #111111;
+            --gray-800: #1a1a1a;
+            --gray-700: #2a2a2a;
+            --gray-600: #3a3a3a;
+            --gray-400: #858585;
+            --gray-300: #a3a3a3;
+            --white: #ffffff;
+            
+            /* Brand Colors - Gaming Accent */
+            --red-500: #ff4444;
+            --red-600: #e63939;
+            --orange-500: #ff8844;
+            --green-500: #00ff88;
+            
+            /* Semantic Tokens */
+            --bg-base: var(--black);
+            --bg-elevated: var(--gray-900);
+            --bg-panel: var(--gray-800);
+            --text-primary: var(--white);
+            --text-secondary: var(--gray-300);
+            --text-tertiary: var(--gray-400);
+            --border-primary: rgba(255, 255, 255, 0.08);
+            --border-strong: rgba(255, 255, 255, 0.12);
+            
+            /* Spacing Scale - 4px base */
+            --space-1: 0.25rem;
+            --space-2: 0.5rem;
+            --space-3: 0.75rem;
+            --space-4: 1rem;
+            --space-6: 1.5rem;
+            --space-8: 2rem;
+            --space-12: 3rem;
+            --space-16: 4rem;
+            --space-24: 6rem;
+            --space-32: 8rem;
+            
+            /* Typography Scale */
+            --text-xs: 0.75rem;
+            --text-sm: 0.875rem;
+            --text-base: 1rem;
+            --text-lg: 1.125rem;
+            --text-xl: 1.25rem;
+            --text-2xl: 1.5rem;
+            --text-3xl: 1.875rem;
+            --text-4xl: 2.25rem;
+            --text-5xl: 3rem;
+            --text-6xl: 3.75rem;
+            --text-7xl: 4.5rem;
+            
+            /* Radius Scale */
+            --radius-sm: 0.375rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+            --radius-2xl: 1.5rem;
+            --radius-full: 9999px;
+            
+            /* Shadow System - Realistic depth */
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.6);
+            --shadow-glow: 0 0 40px rgba(255, 68, 68, 0.3);
+            
+            /* Animation Tokens - Professional easing */
+            --ease-in: cubic-bezier(0.4, 0, 1, 1);
+            --ease-out: cubic-bezier(0, 0, 0.2, 1);
+            --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+            --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+            
+            /* Duration Scale */
+            --duration-fast: 150ms;
+            --duration-base: 250ms;
+            --duration-slow: 350ms;
+        }
+
+        /* ==========================================
+           RESET & BASE STYLES
+        ========================================== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: var(--text-base);
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: var(--bg-base);
+            overflow-x: hidden;
+        }
+
+        /* ==========================================
+           ATMOSPHERIC BACKGROUND SYSTEM
+           Subtle grain + animated gradients
+        ========================================== */
+        .atmosphere {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .atmosphere::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(255, 68, 68, 0.04) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 136, 68, 0.03) 0%, transparent 50%);
+            animation: atmosphereShift 20s ease-in-out infinite;
+        }
+
+        @keyframes atmosphereShift {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-20px, -20px) scale(1.05); }
+        }
+
+        /* Film grain overlay - Apple Pro Display XDR inspired */
+        .grain {
+            position: fixed;
+            inset: 0;
+            background-image: url('data:image/svg+xml,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="n"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23n)" opacity="0.03"/%3E%3C/svg%3E');
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.6;
+        }
+
+        /* ==========================================
+           NAVIGATION - macOS Big Sur inspired
+        ========================================== */
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            transition: all var(--duration-base) var(--ease-out);
+        }
+
+        .nav::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid var(--border-primary);
+            opacity: 0;
+            transition: opacity var(--duration-base) var(--ease-out);
+        }
+
+        .nav.scrolled::before {
+            opacity: 1;
+        }
+
+        .nav-inner {
+            position: relative;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--space-4) var(--space-6);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-size: var(--text-lg);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            color: var(--text-primary);
+            z-index: 1;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: var(--space-8);
+            list-style: none;
+            z-index: 1;
+        }
+
+        .nav-link {
+            position: relative;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: var(--text-sm);
+            font-weight: 500;
+            letter-spacing: 0.01em;
+            transition: color var(--duration-fast) var(--ease-out);
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: var(--red-500);
+            transition: width var(--duration-base) var(--ease-out);
+        }
+
+        .nav-link:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        .nav-cta {
+            padding: var(--space-2) var(--space-4);
+            background: var(--red-500);
+            color: var(--white);
+            text-decoration: none;
+            font-size: var(--text-sm);
+            font-weight: 600;
+            border-radius: var(--radius-md);
+            transition: all var(--duration-fast) var(--ease-out);
+            z-index: 1;
+        }
+
+        .nav-cta:hover {
+            background: var(--red-600);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        /* ==========================================
+           HERO SECTION - PlayStation 5 UI inspired
+           Powerful, cinematic, immediate impact
+        ========================================== */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-32) var(--space-6) var(--space-24);
+            overflow: hidden;
+        }
+
+        /* Animated background effect */
+        .hero-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        .hero-bg-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.15;
+            animation: orbFloat 15s ease-in-out infinite;
+        }
+
+        .hero-bg-orb:nth-child(1) {
+            width: 500px;
+            height: 500px;
+            background: var(--red-500);
+            top: -100px;
+            right: -100px;
+            animation-delay: 0s;
+        }
+
+        .hero-bg-orb:nth-child(2) {
+            width: 400px;
+            height: 400px;
+            background: var(--orange-500);
+            bottom: -100px;
+            left: -100px;
+            animation-delay: 5s;
+        }
+
+        @keyframes orbFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -30px) scale(1.1); }
+            66% { transform: translate(-30px, 30px) scale(0.9); }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            max-width: 1000px;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-4);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-full);
+            font-size: var(--text-xs);
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: var(--space-6);
+            backdrop-filter: blur(10px);
+            animation: fadeInUp 0.8s var(--ease-out) 0.2s both;
+        }
+
+        .hero-badge-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--green-500);
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .hero-title {
+            font-size: clamp(var(--text-5xl), 8vw, var(--text-7xl));
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            line-height: 1.05;
+            margin-bottom: var(--space-6);
+            animation: fadeInUp 0.8s var(--ease-out) 0.3s both;
+        }
+
+        /* Gradient text effect - Apple style */
+        .gradient-text {
+            background: linear-gradient(135deg, var(--white) 0%, var(--gray-300) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-size: var(--text-xl);
+            font-weight: 400;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto var(--space-8);
+            animation: fadeInUp 0.8s var(--ease-out) 0.4s both;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: var(--space-4);
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: fadeInUp 0.8s var(--ease-out) 0.5s both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Button System - Premium CTAs */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-4) var(--space-8);
+            font-size: var(--text-base);
+            font-weight: 600;
+            text-decoration: none;
+            border-radius: var(--radius-lg);
+            transition: all var(--duration-base) var(--ease-out);
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--red-500);
+            color: var(--white);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-primary:hover {
+            background: var(--red-600);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-xl), var(--shadow-glow);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            border: 1px solid var(--border-strong);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--border-strong);
+            transform: translateY(-2px);
+        }
+
+        /* ==========================================
+           SECTION SYSTEM - Consistent spacing
+        ========================================== */
+        .section {
+            position: relative;
+            padding: var(--space-32) var(--space-6);
+            z-index: 2;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            max-width: 800px;
+            margin: 0 auto var(--space-16);
+            text-align: center;
+        }
+
+        .section-eyebrow {
+            display: inline-block;
+            padding: var(--space-2) var(--space-4);
+            background: rgba(255, 68, 68, 0.1);
+            color: var(--red-500);
+            border-radius: var(--radius-full);
+            font-size: var(--text-xs);
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: var(--space-4);
+        }
+
+        .section-title {
+            font-size: clamp(var(--text-3xl), 5vw, var(--text-5xl));
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+            margin-bottom: var(--space-4);
+        }
+
+        .section-description {
+            font-size: var(--text-lg);
+            line-height: 1.7;
+            color: var(--text-secondary);
+        }
+
+        /* ==========================================
+           FEATURES GRID - Xbox Series X inspired
+           Clean cards with depth and hover effects
+        ========================================== */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: var(--space-6);
+            margin-top: var(--space-16);
+        }
+
+        .feature-card {
+            position: relative;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-xl);
+            padding: var(--space-8);
+            transition: all var(--duration-slow) var(--ease-out);
+            overflow: hidden;
+        }
+
+        /* Subtle gradient overlay on hover */
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255, 68, 68, 0.05) 0%, transparent 100%);
+            opacity: 0;
+            transition: opacity var(--duration-base) var(--ease-out);
+        }
+
+        .feature-card:hover {
+            border-color: var(--border-strong);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 68, 68, 0.1);
+            border-radius: var(--radius-lg);
+            font-size: var(--text-2xl);
+            margin-bottom: var(--space-4);
+        }
+
+        .feature-title {
+            font-size: var(--text-xl);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: var(--space-3);
+        }
+
+        .feature-description {
+            font-size: var(--text-sm);
+            line-height: 1.7;
+            color: var(--text-secondary);
+        }
+
+        /* ==========================================
+           SPECS TABLE - Tesla configurator inspired
+           Clean, scannable, professional
+        ========================================== */
+        .specs-wrapper {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-2xl);
+            overflow: hidden;
+            margin-top: var(--space-12);
+        }
+
+        .specs-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .specs-table thead {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .specs-table th {
+            padding: var(--space-4) var(--space-6);
+            text-align: left;
+            font-size: var(--text-xs);
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-tertiary);
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .specs-table td {
+            padding: var(--space-6);
+            border-bottom: 1px solid var(--border-primary);
+            font-size: var(--text-sm);
+        }
+
+        .specs-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .specs-table tbody tr {
+            transition: background var(--duration-fast) var(--ease-out);
+        }
+
+        .specs-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .spec-label {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .spec-value {
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ==========================================
+           INSTALLATION STEPS - GitHub Docs style
+           Clear, actionable, developer-friendly
+        ========================================== */
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-8);
+            margin-top: var(--space-12);
+        }
+
+        .step {
+            position: relative;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-xl);
+            padding: var(--space-8);
+        }
+
+        .step-number {
+            position: absolute;
+            top: var(--space-8);
+            left: var(--space-8);
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--red-500);
+            color: var(--white);
+            border-radius: 50%;
+            font-size: var(--text-sm);
+            font-weight: 700;
+        }
+
+        .step-content {
+            padding-left: var(--space-12);
+        }
+
+        .step-title {
+            font-size: var(--text-xl);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: var(--space-2);
+        }
+
+        .step-description {
+            color: var(--text-secondary);
+            margin-bottom: var(--space-4);
+            font-size: var(--text-sm);
+        }
+
+        .code-block {
+            position: relative;
+            background: var(--black);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-6);
+            overflow-x: auto;
+            font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+            font-size: var(--text-sm);
+            line-height: 1.7;
+            margin-top: var(--space-4);
+        }
+
+        .code-block code {
+            color: var(--green-500);
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+
+        /* ==========================================
+           CONTROLS GRID - Game UI inspired
+        ========================================== */
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: var(--space-6);
+            margin-top: var(--space-12);
+        }
+
+        .control-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-xl);
+            padding: var(--space-8);
+            text-align: center;
+            transition: all var(--duration-base) var(--ease-out);
+        }
+
+        .control-card:hover {
+            border-color: var(--border-strong);
+            transform: translateY(-2px);
+        }
+
+        .control-key {
+            display: inline-block;
+            padding: var(--space-3) var(--space-6);
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid rgba(255, 68, 68, 0.3);
+            border-radius: var(--radius-md);
+            font-size: var(--text-sm);
+            font-weight: 700;
+            color: var(--red-500);
+            margin-bottom: var(--space-4);
+            letter-spacing: 0.02em;
+        }
+
+        .control-description {
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+        }
+
+        /* ==========================================
+           CTA SECTION - Stripe pricing inspired
+        ========================================== */
+        .cta-section {
+            background: var(--bg-elevated);
+            border-top: 1px solid var(--border-primary);
+            border-bottom: 1px solid var(--border-primary);
+            padding: var(--space-24) var(--space-6);
+            text-align: center;
+        }
+
+        .cta-content {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .version-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-4);
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: var(--radius-full);
+            font-size: var(--text-xs);
+            font-weight: 700;
+            color: var(--green-500);
+            margin-bottom: var(--space-6);
+        }
+
+        /* ==========================================
+           FOOTER - Minimal, professional
+        ========================================== */
+        footer {
+            padding: var(--space-16) var(--space-6);
+            border-top: 1px solid var(--border-primary);
+            text-align: center;
+        }
+
+        .footer-content {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .footer-text {
+            font-size: var(--text-sm);
+            color: var(--text-tertiary);
+            margin-bottom: var(--space-6);
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: var(--space-6);
+            flex-wrap: wrap;
+            list-style: none;
+        }
+
+        .footer-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: var(--text-sm);
+            font-weight: 500;
+            transition: color var(--duration-fast) var(--ease-out);
+        }
+
+        .footer-link:hover {
+            color: var(--text-primary);
+        }
+
+        .footer-disclaimer {
+            margin-top: var(--space-8);
+            font-size: var(--text-xs);
+            color: var(--text-tertiary);
+            line-height: 1.6;
+        }
+
+        /* ==========================================
+           RESPONSIVE DESIGN - Mobile optimized
+        ========================================== */
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .hero { padding: var(--space-24) var(--space-4) var(--space-16); }
+            .section { padding: var(--space-16) var(--space-4); }
+            .features-grid,
+            .controls-grid { grid-template-columns: 1fr; }
+            .specs-table th,
+            .specs-table td { padding: var(--space-4); font-size: var(--text-xs); }
+            .step-content { padding-left: var(--space-8); }
+        }
+
+        /* ==========================================
+           ACCESSIBILITY - Motion preferences
+        ========================================== */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* ==========================================
+           PERFORMANCE - GPU acceleration hints
+        ========================================== */
+        .hero-bg-orb,
+        .feature-card,
+        .btn {
+            will-change: transform;
+        }
+
+        /* Intersection Observer reveal animation */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s var(--ease-out);
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+.video-section {
+    position: relative;
+    background: 
+        radial-gradient(circle at 50% 0%, rgba(255, 68, 68, 0.03) 0%, transparent 70%),
+        var(--bg-base);
+}
+
+.video-container {
+    position: relative;
+    max-width: 1100px;
+    margin: var(--space-12) auto 0;
+}
+
+.video-wrapper {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    background: var(--black);
+    border-radius: var(--radius-2xl);
+    overflow: hidden;
+    border: 1px solid var(--border-strong);
+    box-shadow: 
+        var(--shadow-xl),
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+        0 40px 80px rgba(0, 0, 0, 0.5);
+    transition: all var(--duration-slow) var(--ease-out);
+}
+
+.video-wrapper:hover {
+    transform: translateY(-4px);
+    box-shadow: 
+        var(--shadow-xl),
+        0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+        0 50px 100px rgba(0, 0, 0, 0.6),
+        0 0 60px rgba(255, 68, 68, 0.2);
+}
+
+.video-wrapper iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+/* Ambient glow effect below video */
+.video-glow {
+    position: absolute;
+    bottom: -80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 120px;
+    background: radial-gradient(ellipse at center, rgba(255, 68, 68, 0.15) 0%, transparent 70%);
+    filter: blur(40px);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--duration-slow) var(--ease-out);
+}
+
+.video-wrapper:hover + .video-glow {
+    opacity: 1;
+}
+
+/* Responsive video adjustments */
+@media (max-width: 768px) {
+    .video-wrapper {
+        border-radius: var(--radius-xl);
+    }
+    
+    .video-glow {
+        bottom: -40px;
+        height: 80px;
+    }
+}
+    </style>
+</head>
+<body>
+    <!-- Atmospheric effects -->
+    <div class="atmosphere"></div>
+    <div class="grain"></div>
+
+    <!-- Navigation -->
+    <nav class="nav" id="nav">
+        <div class="nav-inner">
+            <div class="logo">3D All Stars</div>
+            <ul class="nav-links">
+                <li><a href="#features" class="nav-link">Features</a></li>
+                <li><a href="#requirements" class="nav-link">System</a></li>
+                <li><a href="#installation" class="nav-link">Install</a></li>
+                <li><a href="#controls" class="nav-link">Controls</a></li>
+            </ul>
+            <a href="https://github.com/retired64/3D-All-Stars-Linux-EDITION/releases" class="nav-cta">Download</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-bg">
+            <div class="hero-bg-orb"></div>
+            <div class="hero-bg-orb"></div>
+        </div>
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span class="hero-badge-dot"></span>
+                <span>v1.0 Pre-Release</span>
+            </div>
+            <h1 class="hero-title">
+                <span class="gradient-text">Console Gaming.</span><br>
+                Linux Native.
+            </h1>
+            <p class="hero-subtitle">
+                A unified launcher delivering gamepad-first navigation and seamless emulation. 
+                Pre-configured, premium, powerful. No compromises.
+            </p>
+            <div class="hero-actions">
+                <a href="https://github.com/retired64/3D-All-Stars-Linux-EDITION/releases" class="btn btn-primary">
+                    Download Now
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M8 3V13M8 13L12 9M8 13L4 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </a>
+                <a href="#features" class="btn btn-secondary">Explore Features</a>
+            </div>
+        </div>
+    </section>
+<!-- Video Showcase Section -->
+<section class="section video-section">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-eyebrow">See it in action</span>
+            <h2 class="section-title">Experience the interface</h2>
+            <p class="section-description">
+                Watch how 3D All Stars transforms your Linux gaming setup into a premium console experience.
+            </p>
+        </div>
+        <div class="video-container reveal">
+            <div class="video-wrapper">
+                <iframe 
+                    src="https://www.youtube.com/embed/z_HW1r0-AXc?rel=0&modestbranding=1&autohide=1&showinfo=0" 
+                    title="3D All Stars Linux Edition Demo"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen>
+                </iframe>
+            </div>
+            <div class="video-glow"></div>
+        </div>
+    </div>
+</section>
+    <!-- Features Section -->
+    <section id="features" class="section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-eyebrow">Features</span>
+                <h2 class="section-title">Built for the modern gamer</h2>
+                <p class="section-description">
+                    Every detail designed to deliver a seamless experience from boot to gameplay.
+                </p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card reveal">
+                    <div class="feature-icon">🎮</div>
+                    <h3 class="feature-title">Native Gamepad Support</h3>
+                    <p class="feature-description">
+                        Full controller integration with custom mapping. Navigate your library without touching a keyboard.
+                    </p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon">⚡</div>
+                    <h3 class="feature-title">Pre-Configured Emulators</h3>
+                    <p class="feature-description">
+                        Dolphin, melonDS, and Citra ready out of the box. Just add your legally obtained games.
+                    </p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon">🎵</div>
+                    <h3 class="feature-title">Immersive Audio</h3>
+                    <p class="feature-description">
+                        Dynamic background music with per-game sound effects. Your library comes alive.
+                    </p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon">🔧</div>
+                    <h3 class="feature-title">Infinitely Extensible</h3>
+                    <p class="feature-description">
+                        Simple JSON configuration. Add any emulator, native game, or custom script with Game Editor Tool.
+                    </p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon">📦</div>
+                    <h3 class="feature-title">Fully Portable</h3>
+                    <p class="feature-description">
+                        Maintain your folder structure and take your entire setup to any compatible machine.
+                    </p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon">✨</div>
+                    <h3 class="feature-title">3D All Stars Deluxe</h3>
+                    <p class="feature-description">
+                        Smooth animations, fade transitions, and visual polish. Gaming should feel premium.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- System Requirements -->
+    <section id="requirements" class="section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-eyebrow">System Requirements</span>
+                <h2 class="section-title">What you'll need</h2>
+                <p class="section-description">
+                    Built to run on modern Linux systems with minimal overhead.
+                </p>
+            </div>
+            <div class="specs-wrapper reveal">
+                <table class="specs-table">
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Minimum</th>
+                            <th>Recommended</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="spec-label">Processor</td>
+                            <td class="spec-value">Dual-core, high IPC<br>Intel i3-6100 / Ryzen 3 1200</td>
+                            <td class="spec-value">Quad-core 3.5GHz+<br>Intel i5-8400 / Ryzen 5 3600</td>
+                        </tr>
+                        <tr>
+                            <td class="spec-label">Graphics</td>
+                            <td class="spec-value">DirectX 11.1 / OpenGL 4.4<br>Intel HD 4000 / AMD HD 5000</td>
+                            <td class="spec-value">Dedicated GPU<br>GTX 1050 / RX 560 or better</td>
+                        </tr>
+                        <tr>
+                            <td class="spec-label">Memory</td>
+                            <td class="spec-value">2 GB RAM</td>
+                            <td class="spec-value">4 GB or more</td>
+                        </tr>
+                        <tr>
+                            <td class="spec-label">Storage</td>
+                            <td class="spec-value">5 GB available space</td>
+                            <td class="spec-value">10 GB with game library</td>
+                        </tr>
+                        <tr>
+                            <td class="spec-label">Operating System</td>
+                            <td class="spec-value">Ubuntu 20.04+ / Debian 10+<br>64-bit required</td>
+                            <td class="spec-value">Ubuntu 22.04+ / Debian 11+</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Installation -->
+
+    <!-- Controls -->
+    <section id="controls" class="section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-eyebrow">Controls</span>
+                <h2 class="section-title">How to navigate</h2>
+                <p class="section-description">
+                    Designed for gamepad use, but keyboard works just fine too.
+                </p>
+            </div>
+            <div class="controls-grid">
+                <div class="control-card reveal">
+                    <div class="control-key">Arrows / Left Stick</div>
+                    <p class="control-description">Navigate game library</p>
+                </div>
+                <div class="control-card reveal">
+                    <div class="control-key">Enter / A Button</div>
+                    <p class="control-description">Launch selected game</p>
+                </div>
+                <div class="control-card reveal">
+                    <div class="control-key">W-S / Right Stick</div>
+                    <p class="control-description">Change background music</p>
+                </div>
+                <div class="control-card reveal">
+                    <div class="control-key">Hold B (5 sec)</div>
+                    <p class="control-description">Exit launcher safely</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="cta-content">
+            <div class="version-tag">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <circle cx="6" cy="6" r="6" fill="currentColor"/>
+                </svg>
+                <span>Available Now</span>
+            </div>
+            <h2 class="section-title" style="margin-bottom: var(--space-4);">Ready to start?</h2>
+            <p class="section-description" style="margin-bottom: var(--space-8);">
+                Available now on GitHub with full source code and documentation.
+            </p>
+            <a href="https://github.com/retired64/3D-All-Stars-Linux-EDITION/releases" class="btn btn-primary">
+                Download Latest Release
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <p class="footer-text">Built by <strong>Retired64</strong> with passion for Linux gaming.</p>
+            <ul class="footer-links">
+                <li><a href="https://github.com/retired64/3D-All-Stars-Linux-EDITION" class="footer-link">GitHub</a></li>
+                <li><a href="https://www.youtube.com/@Retired64" class="footer-link">YouTube</a></li>
+                <li><a href="https://github.com/retired64/3D-All-Stars-Linux-EDITION/issues" class="footer-link">Report Issue</a></li>
+                <li><a href="https://github.com/retired64/3D-All-Stars-Linux-EDITION/discussions" class="footer-link">Discussions</a></li>
+            </ul>
+            <p class="footer-disclaimer">
+                This project does not include ROMs or copyrighted content.<br>
+                Users are responsible for providing their own legally obtained game backups.
+            </p>
+        </div>
+    </footer>
+
+    <!-- JavaScript - Performance optimized -->
+    <script>
+        // ==========================================
+        // NAVIGATION SCROLL BEHAVIOR
+        // Glassmorphism effect on scroll
+        // ==========================================
+        const nav = document.getElementById('nav');
+        let lastScroll = 0;
+        let ticking = false;
+
+        function updateNav() {
+            const currentScroll = window.pageYOffset;
+            
+            if (currentScroll > 100) {
+                nav.classList.add('scrolled');
+            } else {
+                nav.classList.remove('scrolled');
+            }
+            
+            lastScroll = currentScroll;
+            ticking = false;
+        }
+
+        window.addEventListener('scroll', () => {
+            if (!ticking) {
+                window.requestAnimationFrame(updateNav);
+                ticking = true;
+            }
+        }, { passive: true });
+
+        // ==========================================
+        // SMOOTH SCROLL FOR ANCHOR LINKS
+        // Apple-style smooth navigation
+        // ==========================================
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                
+                if (target) {
+                    const navHeight = nav.offsetHeight;
+                    const targetPosition = target.getBoundingClientRect().top + window.pageYOffset - navHeight - 20;
+                    
+                    window.scrollTo({
+                        top: targetPosition,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+
+        // ==========================================
+        // INTERSECTION OBSERVER - SCROLL REVEALS
+        // Staggered fade-in animations
+        // ==========================================
+        const observerOptions = {
+            threshold: 0.15,
+            rootMargin: '0px 0px -80px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry, index) => {
+                if (entry.isIntersecting) {
+                    // Stagger animation delay based on index
+                    setTimeout(() => {
+                        entry.target.classList.add('active');
+                    }, index * 100);
+                    
+                    // Unobserve after animation to improve performance
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        // Observe all reveal elements
+        document.querySelectorAll('.reveal').forEach(el => {
+            observer.observe(el);
+        });
+
+        // ==========================================
+        // PERFORMANCE MONITORING
+        // Log Core Web Vitals in console
+        // ==========================================
+        if ('PerformanceObserver' in window) {
+            // Largest Contentful Paint
+            const lcpObserver = new PerformanceObserver((list) => {
+                const entries = list.getEntries();
+                const lastEntry = entries[entries.length - 1];
+                console.log('LCP:', lastEntry.renderTime || lastEntry.loadTime);
+            });
+            lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
+
+            // First Input Delay
+            const fidObserver = new PerformanceObserver((list) => {
+                list.getEntries().forEach((entry) => {
+                    console.log('FID:', entry.processingStart - entry.startTime);
+                });
+            });
+            fidObserver.observe({ entryTypes: ['first-input'] });
+
+            // Cumulative Layout Shift
+            let clsValue = 0;
+            const clsObserver = new PerformanceObserver((list) => {
+                list.getEntries().forEach((entry) => {
+                    if (!entry.hadRecentInput) {
+                        clsValue += entry.value;
+                        console.log('CLS:', clsValue);
+                    }
+                });
+            });
+            clsObserver.observe({ entryTypes: ['layout-shift'] });
+        }
+
+        // ==========================================
+        // PREFETCH CRITICAL RESOURCES
+        // Hint browser to preload GitHub releases page
+        // ==========================================
+        const prefetchLink = document.createElement('link');
+        prefetchLink.rel = 'prefetch';
+        prefetchLink.href = 'https://github.com/retired64/3D-All-Stars-Linux-EDITION/releases';
+        document.head.appendChild(prefetchLink);
+
+        // ==========================================
+        // GAMEPAD API DETECTION
+        // Easter egg: Show gamepad connected status
+        // ==========================================
+        window.addEventListener('gamepadconnected', (e) => {
+            console.log('🎮 Gamepad connected:', e.gamepad.id);
+            
+            // Optional: Show toast notification
+            const toast = document.createElement('div');
+            toast.textContent = '🎮 Gamepad Connected';
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                padding: 12px 24px;
+                background: rgba(0, 255, 136, 0.1);
+                border: 1px solid rgba(0, 255, 136, 0.3);
+                border-radius: 8px;
+                color: var(--green-500);
+                font-size: 14px;
+                font-weight: 600;
+                z-index: 10000;
+                animation: fadeInUp 0.3s ease-out;
+            `;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        });
+
+        // ==========================================
+        // PREVENT LAYOUT SHIFT
+        // Set explicit dimensions for dynamic content
+        // ==========================================
+        window.addEventListener('DOMContentLoaded', () => {
+            // Force reflow for smoother initial render
+            document.body.offsetHeight;
+        });
+    </script>
+</body>
+</html>
