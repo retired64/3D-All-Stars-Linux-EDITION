@@ -14,6 +14,7 @@
     "icon": "assets/marioGalaxy/icon.png",
     "logo": "assets/marioGalaxy/logo.png",
     "sound": "assets/marioGalaxy/mariogalaxy1.wav"
+
   },
   {
     "nombre": "Mario Galaxy 2",
@@ -22,6 +23,7 @@
     "icon": "assets/marioGalaxy2/icon.png",
     "logo": "assets/marioGalaxy2/logo.png",
     "sound": "assets/marioGalaxy2/mariogalaxy2.wav"
+
   },
   {
     "nombre": "Mario 3D Land",
@@ -30,6 +32,7 @@
     "icon": "assets/mario3dland/icon.png",
     "logo": "assets/mario3dland/logo.png",
     "sound": "assets/mario3dland/mario3dLand.wav"
+
   },
   {
     "nombre": "Mario Sunshine",
@@ -46,13 +49,5 @@
     "icon": "assets/mario64DS/icon.png",
     "logo": "assets/mario64DS/logo.png",
     "sound": "assets/mario64DS/mario64DS.wav"
-  },
-  {
-    "nombre": "mario kart 8 Deluxe",
-    "tipo": "binario",
-    "ruta_ejecutable": "games/mario_kart_8_deluxe/run",
-    "icon": "assets/mario_kart_8_deluxe/icon.png",
-    "logo": "assets/mario_kart_8_deluxe/logo.png",
-    "sound": "assets/mario_kart_8_deluxe/sound.wav"
   }
 ]
