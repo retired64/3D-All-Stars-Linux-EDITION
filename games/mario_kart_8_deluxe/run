@@ -1,3 +1,3 @@
 #!/bin/sh
 cd "$(dirname "$0")" || exit 1
-../../eden/Ryujinx/edenv0.0.4amd64-clang-pgo -g "./game.nsp" -f
+../../eden/edenv0.0.4amd64-clang-pgo -g "M@rio_K4rt_8_Deluxe_v3.0.4+DLCs.xci" -f
