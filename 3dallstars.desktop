@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Super Mario 3D All Stars 
+Comment=3D All Stars Linux Edition
+Icon=/home/retired64/3D-All-Stars-Linux-EDITION/src/img/icon.png
+Exec=/home/retired64/3D-All-Stars-Linux-EDITION/laucher.sh
+Path=/home/retired64/3D-All-Stars-Linux-EDITION
+Terminal=false
+Categories=Game;Utility;
+StartupNotify=true
