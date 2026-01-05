@@ -58,6 +58,13 @@ class Config:
         "nds/melonDS",
         "main.py"
     ]
+    
+    # Emulator validation commands (emulator_path: version_flag)
+    EMULATOR_VERSION_FLAGS = {
+        "dolphin-emulator/dolphin-emu": "--version",
+        "3ds/azahar.AppImage": "--version",
+        "nds/melonDS": "--version"  # Note: melonDS uses --version but exits with error
+    }
 
 
 class DownloadSource(Enum):
@@ -447,6 +454,7 @@ class Installer:
     def __init__(self):
         self.config = Config()
         self.assets_installed = False
+        self.emulator_status = None
     
     def run(self):
         """Execute complete installation workflow."""
@@ -463,6 +471,7 @@ class Installer:
             self._setup_python_environment()
             self._setup_system_integration()
             self._set_permissions()
+            self.emulator_status = self._validate_emulators()
             self._refresh_desktop_database()
             
             self._print_success()
@@ -652,6 +661,85 @@ StartupWMClass=3d-all-stars
                 except Exception as e:
                     logger.warning(f"Could not set permissions on {exe}: {e}")
     
+    def _validate_emulators(self):
+        """Verify emulator binaries are functional."""
+        logger.info("Validating emulator binaries")
+        
+        validation_results = {
+            'working': [],
+            'broken': [],
+            'untested': []
+        }
+        
+        for exe_rel_path, version_flag in self.config.EMULATOR_VERSION_FLAGS.items():
+            exe_path = self.config.INSTALL_DIR / exe_rel_path
+            
+            if not exe_path.exists():
+                validation_results['untested'].append(exe_path.name)
+                logger.warning(f"⚠️  Emulator not found: {exe_path.name}")
+                continue
+            
+            try:
+                # Run version check with timeout
+                result = subprocess.run(
+                    [str(exe_path), version_flag],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                # Parse output
+                output = result.stdout + result.stderr
+                
+                # Special handling for melonDS (exits with code 1 on --version)
+                if exe_path.name == "melonDS":
+                    if "melonDS" in output and any(v in output for v in ["1.0", "1.1", "1.2"]):
+                        version_match = re.search(r'melonDS\s+([\d.]+)', output)
+                        version = version_match.group(1) if version_match else "unknown"
+                        validation_results['working'].append(f"{exe_path.name} v{version}")
+                        logger.info(f"✅ {exe_path.name} validated (v{version})")
+                    else:
+                        validation_results['broken'].append(exe_path.name)
+                        logger.warning(f"⚠️  {exe_path.name} validation unclear")
+                
+                # Standard validation (returncode 0)
+                elif result.returncode == 0:
+                    # Extract version from output
+                    version_match = re.search(r'(?:version|v\.?|)\s*([\d.]+)', output, re.IGNORECASE)
+                    version = version_match.group(1) if version_match else "unknown"
+                    
+                    validation_results['working'].append(f"{exe_path.name} v{version}")
+                    logger.info(f"✅ {exe_path.name} validated (v{version})")
+                
+                else:
+                    validation_results['broken'].append(exe_path.name)
+                    logger.warning(f"⚠️  {exe_path.name} returned non-zero exit code")
+                    
+            except subprocess.TimeoutExpired:
+                validation_results['broken'].append(exe_path.name)
+                logger.warning(f"⚠️  {exe_path.name} validation timed out (may hang on startup)")
+                
+            except FileNotFoundError:
+                validation_results['untested'].append(exe_path.name)
+                logger.warning(f"⚠️  {exe_path.name} missing required dependencies")
+                
+            except Exception as e:
+                validation_results['untested'].append(exe_path.name)
+                logger.warning(f"⚠️  Could not validate {exe_path.name}: {type(e).__name__}")
+        
+        # Summary
+        if validation_results['working']:
+            logger.info(f"Working emulators: {', '.join(validation_results['working'])}")
+        
+        if validation_results['broken']:
+            logger.warning(f"Potentially broken emulators: {', '.join(validation_results['broken'])}")
+            logger.warning("These emulators may need system dependencies installed")
+        
+        if validation_results['untested']:
+            logger.info(f"Untested: {', '.join(validation_results['untested'])}")
+        
+        return validation_results
+    
     def _refresh_desktop_database(self):
         """Update system desktop database."""
         logger.info("Refreshing desktop database")
@@ -690,9 +778,9 @@ StartupWMClass=3d-all-stars
         print("=" * 70)
         print(f"\nInstalled to: {self.config.INSTALL_DIR}")
         
+        # Assets status
         if self.assets_installed:
             print("\n✅ All assets downloaded and installed")
-            print("   Launch from: Applications Menu → Super Mario 3D All Stars")
         else:
             print("\n⚠️  WARNING: Assets were not installed automatically")
             print("\nManual installation required:")
@@ -700,9 +788,23 @@ StartupWMClass=3d-all-stars
             print(f"     • MEGA: {self.config.MEGA_ASSETS_URL}")
             print(f"     • Google Drive: {self.config.GDRIVE_ASSETS_URL}")
             print(f"  2. Extract the ZIP file to: {self.config.ASSETS_DIR}")
-            print(f"  3. Launch the game normally")
         
-        print("\nIf the icon doesn't appear immediately, try:")
+        # Emulator validation status
+        if self.emulator_status:
+            print("\n📦 Emulator Status:")
+            if self.emulator_status['working']:
+                print(f"   ✅ Working: {', '.join(self.emulator_status['working'])}")
+            if self.emulator_status['broken']:
+                print(f"   ⚠️  May need dependencies: {', '.join(self.emulator_status['broken'])}")
+                print("      Try: sudo apt install libsdl2-2.0-0 libgl1 libqt5widgets5")
+            if self.emulator_status['untested']:
+                print(f"   ℹ️  Not validated: {', '.join(self.emulator_status['untested'])}")
+        
+        print("\n🎮 Launch the game:")
+        print("   • From Applications Menu → Super Mario 3D All Stars")
+        print(f"   • Or run: {self.config.LAUNCHER_SCRIPT}")
+        
+        print("\nIf the icon doesn't appear immediately:")
         print("  • Log out and log back in")
         print("  • Or run: update-desktop-database ~/.local/share/applications")
         print("\n" + "=" * 70 + "\n")
