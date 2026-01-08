@@ -7,9 +7,6 @@
     <img src="src/img/fork.png" alt="Fork this repository" width="140" />
   </a>
 
-https://github.com/user-attachments/assets/81190d8c-2ccf-4ec2-9680-7ea807dc44db
-
-
     
   ![GitHub forks](https://img.shields.io/github/forks/retired64/3D-All-Stars-Linux-EDITION?style=social)
   ![GitHub stars](https://img.shields.io/github/stars/retired64/3D-All-Stars-Linux-EDITION?style=social)
@@ -28,6 +25,8 @@ Welcome to 3D All Stars Linux EDITION! This program is designed to give you a co
 
 > [!IMPORTANT]  
 > If you want to run the launcher from source code, make sure to click on the assets folder image and extract the zip file into the project's root directory.
+
+https://github.com/user-attachments/assets/81190d8c-2ccf-4ec2-9680-7ea807dc44db
 
 <div align="center">
   <a href="https://mega.nz/file/qc1iCJzI#xS6NSL1d8-ro8a3xRRbQoNT1IWgo1XMf4ANesjJEuL4" target="_blank">
