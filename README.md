@@ -179,7 +179,6 @@ Each game inside the `games/game_name/` folder has a file called `run`.
 cd "$(dirname "$0")" || exit 1
 # Calls the emulator and loads the ISO you place in that folder
 ../../dolphin-emulator/dolphin-emu -b -e MyGame.iso
-
 ```
 
 ### 2. Where to Put Your Games (ROMs)
@@ -215,7 +214,6 @@ If you want to expand your collection, you need to edit the `games.json` file in
   "logo": "assets/my_new_game/logo.png",
   "sound": "assets/my_new_game/sound.wav"
 }
-
 ```
 
 ### Art Requirements:
@@ -254,11 +252,31 @@ If you want to expand your collection, you need to edit the `games.json` file in
 > [!IMPORTANT]
 > This repository uses Git LFS. Standard clones will not include the working binaries. **If you simply clone the repo without LFS, the emulator will fail to launch with "version not found" errors.**
 
-1. **Install Git LFS on your system:**
-* **Ubuntu/Debian:** `sudo apt install git-lfs`
-* **Arch:** `sudo pacman -S git-lfs`
-* **Fedora:** `sudo dnf install git-lfs`
+### Prerequisites by Distribution
 
+#### Ubuntu/Debian/Mint
+```bash
+sudo apt install git git-lfs build-essential python3 python3-venv python3-dev \
+  libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+  libfreetype6-dev libportmidi-dev libjpeg-dev
+```
+
+#### Fedora/RHEL/CentOS
+```bash
+sudo dnf install git git-lfs gcc gcc-c++ python3 python3-devel \
+  SDL2-devel SDL2_image-devel SDL2_mixer-devel SDL2_ttf-devel \
+  freetype-devel portmidi-devel libjpeg-devel
+```
+
+#### Arch/Manjaro
+```bash
+sudo pacman -S git git-lfs base-devel python python-pip \
+  sdl2 sdl2_image sdl2_mixer sdl2_ttf freetype2 portmidi libjpeg-turbo
+```
+
+### Installation Steps
+
+1. **Install dependencies** (see your distribution above)
 
 2. **Clone and Setup:**
 
@@ -274,17 +292,37 @@ git lfs pull
 
 # 3. Grant execution permissions to emulators and run scripts
 chmod +x dolphin-emulator/dolphin-emu 3ds/azahar.AppImage nds/melonDS games/*/run
+
 # 4. Set up Python Virtual Environment
 python3 -m venv .venv
 source .venv/bin/activate
 
 # 5. Install dependencies
-pip install -r requirements.txt 
+pip install -r requirements.txt
 
 # 6. Launch!
-python3 main.py 
-
+python3 main.py
 ```
+
+### Common Installation Issues
+
+#### Error: "Unknown compiler(s): gcc"
+**Solution:** Install build tools before creating virtual environment
+- **Ubuntu/Debian:** `sudo apt install build-essential python3-dev`
+- **Fedora:** `sudo dnf install gcc gcc-c++ python3-devel`
+- **Arch:** `sudo pacman -S base-devel`
+
+#### Error: "Unable to run sdl-config"
+**Solution:** Install SDL2 development libraries
+- **Ubuntu/Debian:** `sudo apt install libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev`
+- **Fedora:** `sudo dnf install SDL2-devel SDL2_image-devel SDL2_mixer-devel SDL2_ttf-devel`
+- **Arch:** `sudo pacman -S sdl2 sdl2_image sdl2_mixer sdl2_ttf`
+
+#### Error: "Package freetype2 not found"
+**Solution:** Install freetype development package
+- **Ubuntu/Debian:** `sudo apt install libfreetype6-dev`
+- **Fedora:** `sudo dnf install freetype-devel`
+- **Arch:** `sudo pacman -S freetype2`
 
 <div align="center">
 
